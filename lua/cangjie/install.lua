@@ -62,6 +62,22 @@ function M.target()
   return target[1], target[2]
 end
 
+---@class cangjie.install.Asset
+---@field archive string the file release.yml attaches to a release, `cjls-<target>.<format>`
+---@field dir string the directory in it, `cjls-<target>`
+---@field exe string the binary in that directory
+
+--- What this platform downloads from a release, or nil and why not.
+---@return cangjie.install.Asset?, string?
+function M.asset()
+  local target, format = M.target()
+  if not target then
+    return nil, format
+  end
+  local dir = 'cjls-' .. target
+  return { archive = dir .. '.' .. format, dir = dir, exe = EXE }
+end
+
 -- Runs the steps one after another on the main loop, a command or a function, then `done(err)`.
 local function run(steps, done)
   local function step(i)
@@ -103,16 +119,15 @@ function M.install(opts)
       vim.notify('cjls: ' .. err, vim.log.levels.ERROR)
     end
   end
-  local target, format = M.target()
-  if not target then
-    return done(format)
+  local asset, why = M.asset()
+  if not asset then
+    return done(why)
   end
   local version = opts.version or M.wanted()
   local base = opts.base or RELEASES
   local url = version and (base .. '/download/' .. version) or (base .. '/latest/download')
   local dir = opts.dir or M.dir()
-  local name = 'cjls-' .. target
-  local archive_name = name .. '.' .. format
+  local archive_name = asset.archive
 
   local tmp = vim.fn.tempname()
   vim.fn.mkdir(tmp, 'p')
@@ -141,7 +156,7 @@ function M.install(opts)
       if vim.uv.fs_stat(bin) then
         assert(vim.uv.fs_rename(bin, bin .. '.old'))
       end
-      assert(vim.uv.fs_rename(vim.fs.joinpath(tmp, name, EXE), bin))
+      assert(vim.uv.fs_rename(vim.fs.joinpath(tmp, asset.dir, EXE), bin))
       pcall(vim.uv.fs_unlink, bin .. '.old')
       if not IS_WINDOWS then
         assert(vim.uv.fs_chmod(bin, tonumber('755', 8)))
