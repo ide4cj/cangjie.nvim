@@ -1,5 +1,5 @@
--- cjfmt: found in the SDK, run on the buffer, its result applied. The cases that run it are
--- skipped without cjfmt; CI installs the SDK and points CANGJIE_HOME at it, nothing more.
+-- cjfmt: found on PATH or in CANGJIE_HOME, run on the buffer, its result applied. The cases that
+-- run it are skipped without cjfmt; CI installs the SDK and points CANGJIE_HOME at it, nothing more.
 local t = require('t')
 local cjfmt = require('cangjie.cjfmt')
 
@@ -14,11 +14,11 @@ end
 
 --- The real cjfmt, or skips the case.
 local function need_cjfmt()
-  local tool = cjfmt.find()
-  if not tool then
+  local exe = cjfmt.find()
+  if not exe then
     t.skip('no cjfmt')
   end
-  return tool
+  return exe
 end
 
 local UNFORMATTED = { 'package a', 'main():Int64{', 'let x=1', '    x}' }
@@ -27,21 +27,20 @@ local FORMATTED = { 'package a', '', 'main(): Int64 {', '    let x = 1', '    x'
 local TWO_FUNCTIONS = { 'package a', '', 'func f(){', 'let x=1', '}', '', 'func g(){', 'let y=2', '}' }
 
 return {
-  ['cjfmt on PATH wins, with the SDK it came with'] = function()
+  ['cjfmt on PATH wins over CANGJIE_HOME'] = function()
     -- arrange
     local dir = t.tempdir()
     local exe = sdk(dir .. '/on-path')
     sdk(dir .. '/home')
 
     -- act
-    local tool
+    local found
     t.with_env({ PATH = dir .. '/on-path/tools/bin', CANGJIE_HOME = dir .. '/home' }, function()
-      tool = cjfmt.find()
+      found = cjfmt.find()
     end)
 
     -- assert
-    t.eq(vim.fs.normalize(vim.uv.fs_realpath(exe)), vim.fs.normalize(vim.uv.fs_realpath(tool.cmd)), 'cmd')
-    t.eq(vim.uv.fs_realpath(dir .. '/on-path'), vim.uv.fs_realpath(tool.home), 'home')
+    t.eq(vim.uv.fs_realpath(exe), vim.uv.fs_realpath(found))
     vim.fn.delete(dir, 'rf')
   end,
 
@@ -49,90 +48,36 @@ return {
     -- arrange
     local dir = t.tempdir()
     local exe = sdk(dir .. '/sdk')
-    sdk(dir .. '/user/.cangjie')
 
     -- act
-    local tool
-    t.with_env({ PATH = dir, CANGJIE_HOME = dir .. '/sdk', HOME = dir .. '/user' }, function()
-      tool = cjfmt.find()
+    local found
+    t.with_env({ PATH = dir, CANGJIE_HOME = dir .. '/sdk' }, function()
+      found = cjfmt.find()
     end)
 
     -- assert
-    t.eq({ cmd = exe, home = dir .. '/sdk' }, tool)
+    t.eq(exe, found)
     vim.fn.delete(dir, 'rf')
   end,
 
-  ['without CANGJIE_HOME it is taken from the SDK in the home directory'] = function()
-    for _, name in ipairs({ '.cangjie', 'cangjie' }) do
-      -- arrange
+  ['nowhere else is looked in, the home directory included'] = function()
+    for _, cangjie_home in ipairs({ vim.NIL, '' }) do
+      -- arrange: an SDK where its archive unpacks, which is not enough
       local dir = t.tempdir()
-      local exe = sdk(dir .. '/user/' .. name)
+      sdk(dir .. '/user/.cangjie')
+      sdk(dir .. '/user/cangjie')
 
       -- act
-      local tool
-      t.with_env({ PATH = dir, CANGJIE_HOME = vim.NIL, HOME = dir .. '/user' }, function()
-        tool = cjfmt.find()
+      local found, err
+      t.with_env({ PATH = dir, CANGJIE_HOME = cangjie_home, HOME = dir .. '/user', USERPROFILE = dir .. '/user' }, function()
+        found, err = cjfmt.find()
       end)
 
       -- assert
-      t.eq({ cmd = exe, home = dir .. '/user/' .. name }, tool, name)
+      t.eq(nil, found, 'CANGJIE_HOME=' .. vim.inspect(cangjie_home))
+      assert(err and err:match('CANGJIE_HOME'), tostring(err))
       vim.fn.delete(dir, 'rf')
     end
-  end,
-
-  ['without cjfmt anywhere find says where it looked'] = function()
-    -- arrange
-    local dir = t.tempdir()
-
-    -- act
-    local tool, err
-    t.with_env({ PATH = dir, CANGJIE_HOME = vim.NIL, HOME = dir }, function()
-      tool, err = cjfmt.find()
-    end)
-
-    -- assert
-    t.eq(nil, tool, 'tool')
-    assert(err and err:match('CANGJIE_HOME'), tostring(err))
-    vim.fn.delete(dir, 'rf')
-  end,
-
-  ['a cjfmt outside an SDK runs in the environment as it is'] = function()
-    -- arrange
-    local dir = t.tempdir()
-    t.write(dir .. '/bin/' .. EXE, { '' })
-    vim.uv.fs_chmod(dir .. '/bin/' .. EXE, tonumber('755', 8))
-
-    -- act
-    local tool
-    t.with_env({ PATH = dir .. '/bin' }, function()
-      tool = cjfmt.find()
-    end)
-
-    -- assert
-    t.eq(nil, tool.home, 'home')
-    t.eq(nil, cjfmt.env(tool.home), 'env')
-    vim.fn.delete(dir, 'rf')
-  end,
-
-  ['the SDK hands cjfmt its home and its libraries'] = function()
-    -- arrange
-    local home = t.tempdir()
-    vim.fn.mkdir(home .. '/runtime/lib/linux_x86_64_cjnative', 'p')
-
-    -- act
-    local env = cjfmt.env(home)
-
-    -- assert
-    t.eq(home, env.CANGJIE_HOME, 'CANGJIE_HOME')
-    local libs = home .. '/tools/lib' .. (t.IS_WINDOWS and ';' or ':') .. home .. '/runtime/lib/linux_x86_64_cjnative'
-    if t.IS_WINDOWS then
-      t.eq(libs, env.PATH:sub(1, #libs), 'PATH')
-    elseif vim.fn.has('mac') == 1 then
-      t.eq(nil, env.LD_LIBRARY_PATH, 'LD_LIBRARY_PATH')
-    else
-      t.eq(libs, env.LD_LIBRARY_PATH:sub(1, #libs), 'LD_LIBRARY_PATH')
-    end
-    vim.fn.delete(home, 'rf')
   end,
 
   ['the configuration is the nearest cangjie-format.toml above the file'] = function()
@@ -304,9 +249,10 @@ return {
     vim.fn.delete(dir, 'rf')
   end,
 
-  ['the SDK in CANGJIE_HOME is enough, without its environment'] = function()
-    local tool = need_cjfmt()
-    if not tool.home then
+  ['CANGJIE_HOME alone is enough, without the rest of the SDK environment'] = function()
+    local exe = need_cjfmt()
+    local home = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(vim.fs.normalize(vim.uv.fs_realpath(exe) or exe))))
+    if vim.fn.executable(vim.fs.joinpath(home, 'tools', 'bin', EXE)) ~= 1 then
       t.skip('cjfmt is not in an SDK')
     end
     -- arrange: nothing of envsetup's but CANGJIE_HOME, as an editor started from a desktop has
@@ -314,7 +260,7 @@ return {
 
     -- act
     local err, text
-    t.with_env({ PATH = empty, CANGJIE_HOME = tool.home, LD_LIBRARY_PATH = vim.NIL }, function()
+    t.with_env({ PATH = empty, CANGJIE_HOME = home, LD_LIBRARY_PATH = vim.NIL, DYLD_LIBRARY_PATH = vim.NIL }, function()
       err, text = cjfmt.format(cjfmt.text(UNFORMATTED, true))
     end)
 

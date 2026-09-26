@@ -1,9 +1,9 @@
 -- `:checkhealth cangjie`: which cjls and cjfmt the plugin runs, and whether the grammar is there.
 local M = {}
 
-local function version(cmd, env)
+local function version(cmd)
   local ok, out = pcall(function()
-    return vim.system(cmd, { text = true, env = env }):wait(5000)
+    return vim.system(cmd, { text = true }):wait(5000)
   end)
   local text = ok and vim.trim((out.stdout or '') .. (out.stderr or '')) or ''
   return text ~= '' and vim.split(text, '\n')[1] or nil
@@ -41,15 +41,15 @@ end
 local function check_cjfmt()
   vim.health.start('cjfmt')
   local cjfmt = require('cangjie.cjfmt')
-  local tool, err = cjfmt.find()
-  if not tool then
+  local exe, err = cjfmt.find()
+  if not exe then
     return vim.health.warn(err or 'cjfmt not found', {
       'Install the Cangjie SDK: cjfmt comes with it, in tools/bin',
-      'Point CANGJIE_HOME at it, or put its tools/bin on PATH',
+      'Set CANGJIE_HOME to it, or put its tools/bin on PATH',
     })
   end
-  local v = version({ tool.cmd, '-v' }, cjfmt.env(tool.home))
-  vim.health.ok(tool.cmd .. (v and (' (' .. v .. ')') or ''))
+  local v = version({ exe, '-v' })
+  vim.health.ok(exe .. (v and (' (' .. v .. ')') or ''))
   local config = cjfmt.config(vim.fn.getcwd())
   if config then
     vim.health.info('configuration: ' .. config)

@@ -1,4 +1,4 @@
--- cjfmt, the formatter the Cangjie SDK ships in `tools/bin`: found without the SDK's environment,
+-- cjfmt, the formatter the Cangjie SDK ships in `tools/bin`: found on PATH or in $CANGJIE_HOME,
 -- run on a copy of the text, its result applied to the buffer as a diff.
 --
 -- cjfmt reads no stdin and writes only to a file whose name ends in `.cj`. On a syntax error it
@@ -11,66 +11,22 @@ local EXE = IS_WINDOWS and 'cjfmt.exe' or 'cjfmt'
 local CONFIG = 'cangjie-format.toml'
 local TIMEOUT_MS = 10000
 
----@class cangjie.cjfmt.Tool
----@field cmd string the executable
----@field home? string the SDK it came with, if it came with one
-
---- The SDK an executable belongs to: `<home>/tools/bin/<exe>`, symlinks resolved.
-local function sdk_home(exe)
-  local bin = vim.fs.dirname(vim.fs.normalize(vim.uv.fs_realpath(exe) or exe))
-  local tools = vim.fs.dirname(bin)
-  if vim.fs.basename(bin) == 'bin' and vim.fs.basename(tools) == 'tools' then
-    return vim.fs.dirname(tools)
-  end
-end
-
---- The SDKs to look in when cjfmt is not on PATH: `$CANGJIE_HOME`, then where the SDK's archive
---- unpacks in the home directory.
-local function sdk_candidates()
-  local home = vim.env.HOME or vim.uv.os_homedir()
-  local dirs = { vim.env.CANGJIE_HOME }
-  if home then
-    vim.list_extend(dirs, { vim.fs.joinpath(home, '.cangjie'), vim.fs.joinpath(home, 'cangjie') })
-  end
-  return dirs
-end
-
---- cjfmt: the one on PATH, else the one in the first SDK found. Nil and why when there is none.
----@return cangjie.cjfmt.Tool?, string?
+--- cjfmt: the one on PATH, else the SDK's in `$CANGJIE_HOME/tools/bin`. It runs in Neovim's
+--- environment as it is, which is all it needs on macOS, Linux and Windows alike: it finds its
+--- libraries without the SDK's library paths, and reads the SDK's default configuration from the
+--- user's CANGJIE_HOME, if there is one.
+---@return string? cmd, string? why not
 function M.find()
   local exe = vim.fn.exepath('cjfmt')
   if exe ~= '' then
-    return { cmd = exe, home = sdk_home(exe) }
+    return exe
   end
-  for _, home in ipairs(sdk_candidates()) do
-    local candidate = vim.fs.joinpath(home, 'tools', 'bin', EXE)
-    if vim.fn.executable(candidate) == 1 then
-      return { cmd = candidate, home = vim.fs.normalize(home) }
-    end
+  local home = vim.env.CANGJIE_HOME
+  local candidate = home and home ~= '' and vim.fs.joinpath(home, 'tools', 'bin', EXE)
+  if candidate and vim.fn.executable(candidate) == 1 then
+    return candidate
   end
-  return nil, 'cjfmt is neither on PATH nor in $CANGJIE_HOME, ~/.cangjie or ~/cangjie'
-end
-
---- What cjfmt needs from `envsetup` to run: CANGJIE_HOME, where it reads its default
---- configuration, and the SDK's libraries where the loader looks for them (macOS finds them
---- through the executable's rpath, Windows only through PATH).
----@param home? string
----@return table<string, string>?
-function M.env(home)
-  if true then -- EXPERIMENT: does cjfmt run without the libraries on the loader's path?
-    return nil
-  end
-  local env = { CANGJIE_HOME = home }
-  local libs = { vim.fs.joinpath(home, 'tools', 'lib') }
-  for _, lib in ipairs(vim.fn.glob(vim.fs.joinpath(home, 'runtime', 'lib', '*_cjnative'), false, true)) do
-    table.insert(libs, vim.fs.normalize(lib))
-  end
-  if IS_WINDOWS then
-    env.PATH = table.concat(libs, ';') .. ';' .. (vim.env.PATH or '')
-  elseif vim.fn.has('mac') == 0 then
-    env.LD_LIBRARY_PATH = table.concat(libs, ':') .. (vim.env.LD_LIBRARY_PATH and (':' .. vim.env.LD_LIBRARY_PATH) or '')
-  end
-  return env
+  return nil, 'cjfmt is neither on PATH nor in $CANGJIE_HOME/tools/bin'
 end
 
 --- The project's `cangjie-format.toml`: the nearest one above `path`, a file or a directory.
@@ -138,8 +94,8 @@ function M.format(text, opts, on_done)
     return err, result
   end
 
-  local tool, missing = M.find()
-  if not tool then
+  local exe, missing = M.find()
+  if not exe then
     return finish(missing)
   end
   -- run in a directory of its own with relative names: on Windows cjfmt cannot create an output
@@ -151,7 +107,7 @@ function M.format(text, opts, on_done)
   f:write(text)
   f:close()
 
-  local cmd = { tool.cmd, '-f', input, '-o', output }
+  local cmd = { exe, '-f', input, '-o', output }
   if opts.config then
     vim.list_extend(cmd, { '-c', opts.config })
   end
@@ -180,7 +136,7 @@ function M.format(text, opts, on_done)
     return 'cjfmt: ' .. table.concat(errors, '\n')
   end
 
-  local sys_opts = { cwd = dir, text = true, env = M.env(tool.home) }
+  local sys_opts = { cwd = dir, text = true }
   if on_done then
     vim.system(cmd, sys_opts, vim.schedule_wrap(function(out)
       finish(result(out))

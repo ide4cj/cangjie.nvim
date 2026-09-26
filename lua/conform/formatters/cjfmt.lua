@@ -6,7 +6,7 @@ local cjfmt = require('cangjie.cjfmt')
 return {
   meta = {
     url = 'https://gitcode.com/Cangjie/cangjie_tools/tree/main/cjfmt',
-    description = 'The formatter the Cangjie SDK ships, found in the SDK (cangjie.nvim).',
+    description = 'The formatter the Cangjie SDK ships, found on PATH or in $CANGJIE_HOME (cangjie.nvim).',
   },
   condition = function()
     return cjfmt.find() ~= nil

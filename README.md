@@ -1,7 +1,7 @@
 # cangjie.nvim
 
 [Cangjie](https://cangjie-lang.cn) in Neovim 0.11 or newer: the [cjls](https://github.com/ide4cj/cjls)
-language server, started for `.cj` files and downloaded on first use; cjfmt, found in the Cangjie
+language server, started for `.cj` files and downloaded on first use; cjfmt, from the Cangjie
 SDK, behind `gq`, `:Cjfmt` and conform.nvim; `//` comments and indentation as cjfmt writes them;
 and the tree-sitter grammar for nvim-treesitter.
 
@@ -25,8 +25,8 @@ Don't add `cjls` to its `servers` table: those are the servers Mason installs, a
 know cjls. For highlighting, run `:TSInstall cangjie` once; kickstart starts it in Cangjie buffers
 from then on (it lists the parsers it installs by itself before the plugin loads).
 
-That is all: the server downloads itself, cjfmt is found in the SDK. `:checkhealth cangjie` shows
-which cjls and cjfmt the plugin runs, and what to do when one is missing.
+That is all: the server downloads itself, cjfmt is found in the SDK (`PATH` or `CANGJIE_HOME`).
+`:checkhealth cangjie` shows which cjls and cjfmt the plugin runs, and what to do when one is missing.
 
 | File | What it does |
 |---|---|
@@ -69,10 +69,12 @@ The plugin then downloads nothing.
 ## Formatting
 
 [cjfmt](https://gitcode.com/Cangjie/cangjie_tools/tree/main/cjfmt) comes with the Cangjie SDK, in
-`tools/bin`. The plugin takes the one on `PATH`, else the one in `$CANGJIE_HOME`, `~/.cangjie` or
-`~/cangjie`, and runs it with what it needs of the SDK's environment, so Neovim does not have to be
-started from a shell that sourced `envsetup.sh`. Each run takes the nearest `cangjie-format.toml`
-above the file, or the SDK's `tools/config/cangjie-format.toml` without one.
+`tools/bin`. The plugin takes the one on `PATH`, else the one in `$CANGJIE_HOME/tools/bin`, and
+looks nowhere else. It runs in Neovim's environment as it is: cjfmt needs none of the library paths
+`envsetup` sets, so `CANGJIE_HOME` alone is enough for a Neovim not started from a shell that
+sourced it. Each run takes the nearest `cangjie-format.toml` above the file, or without one the
+SDK's `tools/config/cangjie-format.toml` (when `CANGJIE_HOME` is set; cjfmt's built-in settings
+otherwise).
 
 - `gq` formats the lines it moves over (`gggqG` the whole file), through `'formatexpr'`. Without
   cjfmt, or while typing past `'textwidth'`, it is Neovim's own formatting.
