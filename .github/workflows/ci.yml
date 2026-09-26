@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke test (${{ matrix.os }}, Neovim ${{ matrix.nvim }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        nvim: [stable, nightly]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.nvim }}
+      # the latest cjls release for this platform; until there is one, the server is not started
+      - name: Download cjls
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$RUNNER_OS" in
+            macOS) target=aarch64-apple-darwin; format=tar.gz; exe=cjls ;;
+            Linux) target=x86_64-unknown-linux-gnu; format=tar.gz; exe=cjls ;;
+            Windows) target=x86_64-pc-windows-gnu; format=zip; exe=cjls.exe ;;
+          esac
+          if gh release download --repo ide4cj/cjls --pattern "cjls-$target.$format" --dir "$RUNNER_TEMP"; then
+            tar -xf "$RUNNER_TEMP/cjls-$target.$format" -C "$RUNNER_TEMP"
+            echo "CJLS_BIN=$RUNNER_TEMP/cjls-$target/$exe" >> "$GITHUB_ENV"
+          else
+            echo "::notice::no cjls release yet: the server is not started"
+          fi
+        shell: bash
+      - run: nvim --clean --headless -u test/smoke.lua
+        shell: bash
