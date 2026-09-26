@@ -62,7 +62,9 @@ function M.env(home)
   end
   local env = { CANGJIE_HOME = home }
   local libs = { vim.fs.joinpath(home, 'tools', 'lib') }
-  vim.list_extend(libs, vim.fn.glob(vim.fs.joinpath(home, 'runtime', 'lib', '*_cjnative'), false, true))
+  for _, lib in ipairs(vim.fn.glob(vim.fs.joinpath(home, 'runtime', 'lib', '*_cjnative'), false, true)) do
+    table.insert(libs, vim.fs.normalize(lib))
+  end
   if IS_WINDOWS then
     env.PATH = table.concat(libs, ';') .. ';' .. (vim.env.PATH or '')
   elseif vim.fn.has('mac') == 0 then
@@ -140,10 +142,12 @@ function M.format(text, opts, on_done)
   if not tool then
     return finish(missing)
   end
+  -- run in a directory of its own with relative names: on Windows cjfmt cannot create an output
+  -- whose path mixes `\` and `/`, as a temporary directory joined with a name does
   local dir = vim.fn.tempname()
   vim.fn.mkdir(dir, 'p')
-  local input, output = vim.fs.joinpath(dir, 'input.cj'), vim.fs.joinpath(dir, 'output.cj')
-  local f = assert(io.open(input, 'wb'))
+  local input, output = 'input.cj', 'output.cj'
+  local f = assert(io.open(vim.fs.joinpath(dir, input), 'wb'))
   f:write(text)
   f:close()
 
@@ -160,7 +164,7 @@ function M.format(text, opts, on_done)
     local errors = M.errors((out.stdout or '') .. '\n' .. (out.stderr or ''))
     local formatted
     if #errors == 0 and out.code == 0 then
-      local o = io.open(output, 'rb')
+      local o = io.open(vim.fs.joinpath(dir, output), 'rb')
       formatted = o and o:read('*a')
       if o then
         o:close()
@@ -176,7 +180,7 @@ function M.format(text, opts, on_done)
     return 'cjfmt: ' .. table.concat(errors, '\n')
   end
 
-  local sys_opts = { text = true, env = M.env(tool.home) }
+  local sys_opts = { cwd = dir, text = true, env = M.env(tool.home) }
   if on_done then
     vim.system(cmd, sys_opts, vim.schedule_wrap(function(out)
       finish(result(out))

@@ -49,15 +49,26 @@ return {
     assert(cangjie and cangjie.install_info.url and cangjie.install_info.revision, 'the cangjie grammar is not registered')
   end,
 
-  ['checkhealth reports on the server, the formatter and the grammar'] = function()
+  ['checkhealth reports on the server, the formatter and the grammar, without errors'] = function()
+    -- arrange: what the checks report, rather than the buffer :checkhealth fills when it likes
+    local reported, saved = {}, vim.health
+    local function record(kind)
+      return function(msg)
+        table.insert(reported, kind .. ' ' .. msg)
+      end
+    end
+    vim.health = { start = record('#'), ok = record('ok'), info = record('info'), warn = record('warn'), error = record('ERROR') }
+
     -- act
-    vim.cmd('silent checkhealth cangjie')
+    local ok, err = pcall(require('cangjie.health').check)
+    vim.health = saved
 
     -- assert
-    local text = table.concat(t.lines(), '\n')
-    for _, section in ipairs({ 'cjls', 'cjfmt', 'tree%-sitter' }) do
-      assert(text:match(section), 'no ' .. section .. ' section in\n' .. text)
-    end
+    assert(ok, err)
+    local text = table.concat(reported, '\n')
+    t.eq({ '# cjls', '# cjfmt', '# tree-sitter' }, vim.tbl_filter(function(line)
+      return vim.startswith(line, '#')
+    end, reported), text)
     assert(not text:match('ERROR'), text)
   end,
 }
