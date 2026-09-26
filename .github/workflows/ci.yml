@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  smoke:
-    name: Smoke test (${{ matrix.os }}, Neovim ${{ matrix.nvim }})
+  test:
+    name: Test (${{ matrix.os }}, Neovim ${{ matrix.nvim }})
     strategy:
       fail-fast: false
       matrix:
@@ -27,22 +27,42 @@ jobs:
         with:
           neovim: true
           version: ${{ matrix.nvim }}
-      # the latest cjls release for this platform; until there is one, the server is not started
-      - name: Download cjls
-        env:
-          GH_TOKEN: ${{ github.token }}
+
+      # cjfmt comes with the Cangjie SDK: the nightly cjls builds with, installed by cjls's own script
+      - uses: actions/checkout@v4
+        with:
+          repository: ide4cj/cjls
+          path: .cjls
+          sparse-checkout: |
+            .cangjie-version
+            .github/actions/setup-cangjie
+      - id: cangjie
+        run: echo "tag=$(tr -d '[:space:]' < .cjls/.cangjie-version)" >> "$GITHUB_OUTPUT"
+        shell: bash
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/cangjie
+          key: cangjie-${{ runner.os }}-${{ runner.arch }}-${{ steps.cangjie.outputs.tag }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # only CANGJIE_HOME, not the environment envsetup makes: the plugin has to find cjfmt and run
+      # it the way an editor started from a desktop would
+      - name: Cangjie SDK
         run: |
-          case "$RUNNER_OS" in
-            macOS) target=aarch64-apple-darwin; format=tar.gz; exe=cjls ;;
-            Linux) target=x86_64-unknown-linux-gnu; format=tar.gz; exe=cjls ;;
-            Windows) target=x86_64-pc-windows-gnu; format=zip; exe=cjls.exe ;;
-          esac
-          if gh release download --repo ide4cj/cjls --pattern "cjls-$target.$format" --dir "$RUNNER_TEMP"; then
-            tar -xf "$RUNNER_TEMP/cjls-$target.$format" -C "$RUNNER_TEMP"
-            echo "CJLS_BIN=$RUNNER_TEMP/cjls-$target/$exe" >> "$GITHUB_ENV"
+          GITHUB_ENV= GITHUB_PATH= python .cjls/.github/actions/setup-cangjie/setup.py "${{ steps.cangjie.outputs.tag }}" "$RUNNER_TEMP/cangjie" > /dev/null
+          echo "CANGJIE_HOME=$RUNNER_TEMP/cangjie/cangjie" >> "$GITHUB_ENV"
+        shell: bash
+
+      # the latest cjls release, by the plugin's installer; until there is one, the server is not started
+      - name: cjls
+        run: |
+          if bin=$(nvim --clean --headless -l test/install_cjls.lua "$RUNNER_TEMP/cjls"); then
+            echo "CJLS_BIN=$bin" >> "$GITHUB_ENV"
           else
-            echo "::notice::no cjls release yet: the server is not started"
+            echo "::notice::no cjls release to download: the server is not started"
           fi
         shell: bash
-      - run: nvim --clean --headless -u test/smoke.lua
+
+      - run: nvim --clean --headless -u test/run.lua
         shell: bash

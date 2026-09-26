@@ -1,8 +1,9 @@
 # cangjie.nvim
 
 [Cangjie](https://cangjie-lang.cn) in Neovim 0.11 or newer: the [cjls](https://github.com/ide4cj/cjls)
-language server, started for `.cj` files and downloaded on first use; `//` comments and
-indentation as cjfmt writes them; and the tree-sitter grammar for nvim-treesitter.
+language server, started for `.cj` files and downloaded on first use; cjfmt, from the Cangjie
+SDK, behind `gq`, `:Cjfmt` and conform.nvim; `//` comments and indentation as cjfmt writes them;
+and the tree-sitter grammar for nvim-treesitter.
 
 ## Install
 
@@ -24,13 +25,19 @@ Don't add `cjls` to its `servers` table: those are the servers Mason installs, a
 know cjls. For highlighting, run `:TSInstall cangjie` once; kickstart starts it in Cangjie buffers
 from then on (it lists the parsers it installs by itself before the plugin loads).
 
+That is all: the server downloads itself, cjfmt is found in the SDK (`PATH` or `CANGJIE_HOME`).
+`:checkhealth cangjie` shows which cjls and cjfmt the plugin runs, and what to do when one is missing.
+
 | File | What it does |
 |---|---|
 | `lsp/cjls.lua` | the server's `vim.lsp.Config`, in nvim-lspconfig's format: `cjls` from `PATH`, rooted at the nearest `cjpm.toml` |
 | `plugin/cjls.lua` | `vim.lsp.enable('cjls')`, `:CjlsInstall`, the download when there is no `cjls` on `PATH` |
 | `lua/cangjie/install.lua` | the download itself |
-| `ftplugin/cangjie.lua` | `//` comments (`gc`), 4-space indentation as cjfmt writes it |
-| `plugin/cangjie.lua` | `*.cj.macrocall` as Cangjie; the tree-sitter grammar for nvim-treesitter |
+| `lua/cangjie/cjfmt.lua` | cjfmt: found, run, its result applied |
+| `lua/conform/formatters/cjfmt.lua` | cjfmt for conform.nvim |
+| `lua/cangjie/health.lua` | `:checkhealth cangjie` |
+| `ftplugin/cangjie.lua` | `//` comments (`gc`), 4-space indentation as cjfmt writes it, `gq` through cjfmt |
+| `plugin/cangjie.lua` | `:Cjfmt`; `*.cj.macrocall` as Cangjie; the tree-sitter grammar for nvim-treesitter |
 
 Neovim detects `*.cj` itself. Settings go through `vim.lsp.config`, as for any server:
 
@@ -58,6 +65,31 @@ vim.lsp.config('cjls', { cmd = { '/path/to/cjls/target/release/bin/cjls' } })
 ```
 
 The plugin then downloads nothing.
+
+## Formatting
+
+[cjfmt](https://gitcode.com/Cangjie/cangjie_tools/tree/main/cjfmt) comes with the Cangjie SDK, in
+`tools/bin`. The plugin takes the one on `PATH`, else the one in `$CANGJIE_HOME/tools/bin`, and
+looks nowhere else. It runs in Neovim's environment as it is: cjfmt needs none of the library paths
+`envsetup` sets, so `CANGJIE_HOME` alone is enough for a Neovim not started from a shell that
+sourced it. Each run takes the nearest `cangjie-format.toml` above the file, or without one the
+SDK's `tools/config/cangjie-format.toml` (when `CANGJIE_HOME` is set; cjfmt's built-in settings
+otherwise).
+
+- `gq` formats the lines it moves over (`gggqG` the whole file), through `'formatexpr'`. Without
+  cjfmt, or while typing past `'textwidth'`, it is Neovim's own formatting.
+- `:Cjfmt` formats the buffer, `:'<,'>Cjfmt` the lines selected.
+- With [conform.nvim](https://github.com/stevearc/conform.nvim), the plugin is where conform looks
+  for a formatter it has no definition of, so naming it is enough:
+
+  ```lua
+  require('conform').setup({ formatters_by_ft = { cangjie = { 'cjfmt' } } })
+  ```
+
+  `format_on_save` and range formatting then work as for any other formatter.
+
+A file cjfmt cannot parse is left as it is, and the errors it reports are shown with their
+`line:column`.
 
 ## Highlighting
 
@@ -89,8 +121,13 @@ Without the grammar Neovim falls back to its own `syntax/cangjie.vim`.
 ## Test
 
 ```sh
-nvim --clean --headless -u test/smoke.lua                                  # without the server
-CJLS_BIN=/path/to/cjls nvim --clean --headless -u test/smoke.lua           # and with it
+nvim --clean --headless -u test/run.lua                           # all of test/*_test.lua
+CJLS_BIN=/path/to/cjls nvim --clean --headless -u test/run.lua    # the server too
+TEST=cjfmt nvim --clean --headless -u test/run.lua                # the cases matching a Lua pattern
 ```
 
-CI runs it with the latest cjls release (without the server until there is one), and cjls's own CI with the binary it builds.
+A case needing what is not there is skipped, not failed: the server's without `CJLS_BIN`, cjfmt's
+without a cjfmt the plugin finds. CI runs them all on macOS, Linux and Windows with the Cangjie SDK
+cjls builds with (in `CANGJIE_HOME` only, not on `PATH`) and the latest cjls release, downloaded by
+`test/install_cjls.lua` (without the server until there is one); cjls's own CI runs them with the
+binary it builds.
