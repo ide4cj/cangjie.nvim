@@ -57,7 +57,7 @@ end
 ---@param home? string
 ---@return table<string, string>?
 function M.env(home)
-  if not home then
+  if true then -- EXPERIMENT: does cjfmt run without the libraries on the loader's path?
     return nil
   end
   local env = { CANGJIE_HOME = home }
