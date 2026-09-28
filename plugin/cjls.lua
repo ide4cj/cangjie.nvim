@@ -32,6 +32,15 @@ vim.api.nvim_create_user_command('CjlsInstall', function()
   install_and_start(install.wanted())
 end, { desc = 'Download the cjls binary from its GitHub release' })
 
+-- cjls/memoryUsage (lua/cangjie/cjls.lua)
+vim.api.nvim_create_user_command('CjlsMemoryUsage', function(args)
+  require('cangjie.cjls').show_memory_usage({ collect = args.bang })
+end, { bang = true, desc = "cjls's heap and collections; with ! after a collection" })
+
+vim.api.nvim_create_user_command('CjlsHeapDump', function(args)
+  require('cangjie.cjls').heap_dump(args.args)
+end, { nargs = '?', complete = 'file', desc = "Write cjls's heap dump, for cjprof heap -i" })
+
 -- Once per session, at the first Cangjie buffer: download the server if it is missing, or if the
 -- plugin (or `vim.g.cjls_version`) has moved on to another release since
 vim.api.nvim_create_autocmd('FileType', {

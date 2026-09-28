@@ -31,8 +31,9 @@ That is all: the server downloads itself, cjfmt is found in the SDK (`PATH` or `
 | File | What it does |
 |---|---|
 | `lsp/cjls.lua` | the server's `vim.lsp.Config`, in nvim-lspconfig's format: `cjls` from `PATH`, rooted at the nearest `cjpm.toml` |
-| `plugin/cjls.lua` | `vim.lsp.enable('cjls')`, `:CjlsInstall`, the download when there is no `cjls` on `PATH` |
+| `plugin/cjls.lua` | `vim.lsp.enable('cjls')`, `:CjlsInstall`, the download when there is no `cjls` on `PATH`; `:CjlsMemoryUsage`, `:CjlsHeapDump` |
 | `lua/cangjie/install.lua` | the download itself |
+| `lua/cangjie/cjls.lua` | what cjls answers beyond LSP: `cjls/memoryUsage` |
 | `lua/cangjie/cjfmt.lua` | cjfmt: found, run, its result applied |
 | `lua/conform/formatters/cjfmt.lua` | cjfmt for conform.nvim |
 | `lua/cangjie/health.lua` | `:checkhealth cangjie` |
@@ -65,6 +66,26 @@ vim.lsp.config('cjls', { cmd = { '/path/to/cjls/target/release/bin/cjls' } })
 ```
 
 The plugin then downloads nothing.
+
+## Memory
+
+How much the server holds, from the Cangjie runtime, through cjls's `cjls/memoryUsage` (what each
+number means is in its [`docs/lsp-extensions.md`](https://github.com/ide4cj/cjls/blob/master/docs/lsp-extensions.md)):
+
+- `:CjlsMemoryUsage` shows the heap and the collections so far. What it calls allocated includes
+  the garbage the collector has not reached yet: it runs on a timer.
+- `:CjlsMemoryUsage!` collects first, and shows what the server actually holds. This is the number
+  for a bug report.
+- `:CjlsHeapDump [path]` collects, then writes a heap dump for `cjprof heap -i <path>`; without a
+  path, to a new `cjls-heap-<date>-<time>.data` in `stdpath('log')`.
+
+They ask the cjls of the current buffer, else the one running, else the one picked; a cjls too old
+to answer is not asked. From a script, the same request, answered with the numbers as the server
+sends them:
+
+```lua
+require('cangjie.cjls').memory_usage({ collect = true }, function(err, usage) end)
+```
 
 ## Formatting
 
