@@ -17,12 +17,24 @@ local USAGE = {
 }
 local SUPPORTED = { memoryUsage = true }
 
+local function stop_all()
+  for _, client in ipairs(vim.lsp.get_clients()) do
+    client:stop(true)
+  end
+  t.wait('the clients did not stop', function()
+    return #vim.lsp.get_clients() == 0
+  end)
+end
+
 --- A server in Lua named cjls, rooted at `root`, attached to the current buffer unless
 --- `opts.detached`, advertising `opts.experimental`. It answers `cjls/memoryUsage` with
 --- `opts.answer(params)`, USAGE by default, and records the params of each such request.
 ---@return vim.lsp.Client client, table[] requests
 local function fake(root, opts)
   opts = opts or {}
+  if not opts.detached then
+    stop_all() -- a client left by a case that failed would be reused for the same root
+  end
   local requests = {}
   local function cmd(dispatchers)
     local closing = false
@@ -92,15 +104,6 @@ local function notifications(fn, count)
     error(err, 0)
   end
   return seen
-end
-
-local function stop_all()
-  for _, client in ipairs(vim.lsp.get_clients()) do
-    client:stop(true)
-  end
-  t.wait('the clients did not stop', function()
-    return #vim.lsp.get_clients() == 0
-  end)
 end
 
 --- cjls on the fixture, initialized and answering cjls/memoryUsage, or skips the case.
@@ -338,6 +341,8 @@ return {
     local _, requests = fake('/root', { experimental = SUPPORTED })
     local cwd = t.tempdir()
     vim.fn.chdir(cwd)
+    -- as Neovim names it: on Windows a real path may spell out a short name
+    local cwd_name = vim.fs.normalize(vim.fn.getcwd())
 
     -- act
     local ok, seen = pcall(notifications, function()
@@ -349,7 +354,7 @@ return {
 
     -- assert
     assert(ok, seen)
-    t.eq({ collect = true, heapDump = vim.fs.normalize(vim.uv.fs_realpath(cwd)) .. '/heap.data' }, requests[1], 'relative')
+    t.eq({ collect = true, heapDump = cwd_name .. '/heap.data' }, requests[1], 'relative')
     t.eq(vim.fs.normalize('~/heap.data'), requests[2].heapDump, '~')
     local log = vim.fs.normalize(vim.fn.stdpath('log'))
     assert(requests[3].heapDump:match('^' .. vim.pesc(log) .. '/cjls%-heap%-%d+%-%d+%.data$'), requests[3].heapDump)
