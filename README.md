@@ -131,3 +131,10 @@ without a cjfmt the plugin finds. CI runs them all on macOS, Linux and Windows w
 cjls builds with (in `CANGJIE_HOME` only, not on `PATH`) and the latest cjls release, downloaded by
 `test/install_cjls.lua` (without the server until there is one); cjls's own CI runs them with the
 binary it builds.
+
+## Contributing
+
+Commits are [Conventional Commits](https://www.conventionalcommits.org/) (`feat: ...`, `fix: ...`),
+checked by [cocogitto](https://docs.cocogitto.io/) in CI, on each commit and the PR title, and
+locally once the hooks are on: `git config core.hooksPath .githooks`. `master` takes pull requests
+only, squashed or rebased, once CI passes.
