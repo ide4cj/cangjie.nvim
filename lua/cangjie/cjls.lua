@@ -140,15 +140,19 @@ function M.show_memory_usage(opts)
 end
 
 --- Where `:CjlsHeapDump [path]` writes: `path` absolute against Neovim's cwd, `~` and environment
---- variables expanded (the server's cwd is not Neovim's); without one, a new file in
---- `stdpath('log')`.
+--- variables expanded (the server's cwd is not Neovim's), its directory as the file system names
+--- it; without one, a new file in `stdpath('log')`.
 ---@param path? string
 ---@return string
 function M.dump_path(path)
   if not path or path == '' then
     path = vim.fs.joinpath(vim.fn.stdpath('log'), 'cjls-heap-' .. os.date('%Y%m%d-%H%M%S') .. '.data')
   end
-  return vim.fs.normalize(vim.fn.fnamemodify(vim.fs.normalize(path), ':p'))
+  path = vim.fs.normalize(vim.fn.fnamemodify(vim.fs.normalize(path), ':p'))
+  -- Neovim's cwd keeps a Windows short name (C:/Users/RUNNER~1) the server would write through and
+  -- report; one not there is left for the server to refuse
+  local dir = vim.uv.fs_realpath(vim.fs.dirname(path))
+  return dir and vim.fs.joinpath(vim.fs.normalize(dir), vim.fs.basename(path)) or path
 end
 
 --- `:CjlsHeapDump [path]`: a collection, then a heap dump written to `path`, for `cjprof heap -i`.

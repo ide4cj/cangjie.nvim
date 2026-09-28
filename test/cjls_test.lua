@@ -341,8 +341,10 @@ return {
     local _, requests = fake('/root', { experimental = SUPPORTED })
     local cwd = t.tempdir()
     vim.fn.chdir(cwd)
-    -- as Neovim names it: on Windows a real path may spell out a short name
-    local cwd_name = vim.fs.normalize(vim.fn.getcwd())
+    -- the file system's names, not the Windows short names Neovim's cwd and TEMP may keep
+    local function real(dir)
+      return vim.fs.normalize(vim.uv.fs_realpath(dir) or dir)
+    end
 
     -- act
     local ok, seen = pcall(notifications, function()
@@ -354,9 +356,9 @@ return {
 
     -- assert
     assert(ok, seen)
-    t.eq({ collect = true, heapDump = cwd_name .. '/heap.data' }, requests[1], 'relative')
-    t.eq(vim.fs.normalize('~/heap.data'), requests[2].heapDump, '~')
-    local log = vim.fs.normalize(vim.fn.stdpath('log'))
+    t.eq({ collect = true, heapDump = real(cwd) .. '/heap.data' }, requests[1], 'relative')
+    t.eq(real(vim.fs.normalize('~')) .. '/heap.data', requests[2].heapDump, '~')
+    local log = real(vim.fn.stdpath('log'))
     assert(requests[3].heapDump:match('^' .. vim.pesc(log) .. '/cjls%-heap%-%d+%-%d+%.data$'), requests[3].heapDump)
     local dump = requests[3].heapDump
     t.eq({ 'cjls: heap dump written to ' .. dump .. '; open it with cjprof heap -i ' .. dump, vim.log.levels.INFO }, seen[6])
