@@ -1,9 +1,15 @@
 name: CI
 
+# The plugin against cjls (cjls's D32): the pinned release and the nightly — or cjls's build of this
+# branch's name when cjls has one — on Neovim stable and nightly. Every day too, when a failure
+# opens an issue.
 on:
   push:
     branches: [master]
   pull_request:
+  schedule:
+    - cron: "0 5 * * *" # after cjls's nightly
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -34,13 +40,19 @@ jobs:
         run: cog verify "$TITLE"
 
   test:
-    name: Test (${{ matrix.os }}, Neovim ${{ matrix.nvim }})
+    name: Test (${{ matrix.os }}, Neovim ${{ matrix.nvim }}, cjls ${{ matrix.cjls }})
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         nvim: [stable, nightly]
+        cjls: [pin]
+        include:
+          - { os: macos-latest, nvim: stable, cjls: nightly }
+          - { os: ubuntu-latest, nvim: stable, cjls: nightly }
+          - { os: windows-latest, nvim: stable, cjls: nightly }
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: rhysd/action-setup-vim@v1
@@ -74,10 +86,21 @@ jobs:
           echo "CANGJIE_HOME=$RUNNER_TEMP/cangjie/cangjie" >> "$GITHUB_ENV"
         shell: bash
 
-      # the latest cjls release, by the plugin's installer; until there is one, the server is not started
+      # cjls's build of this branch's name, when cjls has one (a change made in both)
+      - id: paired
+        uses: ide4cj/.github/actions/cjls@main
+        with:
+          releases: false
+      # else the pinned release or the nightly, by the plugin's own installer; until there is one,
+      # the server is not started
       - name: cjls
+        env:
+          PAIRED: ${{ steps.paired.outputs.path }}
+          VERSION: ${{ matrix.cjls == 'nightly' && 'nightly' || '' }}
         run: |
-          if bin=$(nvim --clean --headless -l test/install_cjls.lua "$RUNNER_TEMP/cjls"); then
+          if [ -n "$PAIRED" ]; then
+            echo "CJLS_BIN=$PAIRED" >> "$GITHUB_ENV"
+          elif bin=$(nvim --clean --headless -l test/install_cjls.lua "$RUNNER_TEMP/cjls" ${VERSION:+"$VERSION"}); then
             echo "CJLS_BIN=$bin" >> "$GITHUB_ENV"
           else
             echo "::notice::no cjls release to download: the server is not started"
@@ -86,3 +109,24 @@ jobs:
 
       - run: nvim --clean --headless -u test/run.lua
         shell: bash
+
+  # a red daily run is an issue, one at a time: the Monday triage starts from those
+  report:
+    name: Report the daily run
+    needs: test
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - run: |
+          title="The daily run against cjls nightly failed"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "Failed again: $RUN"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --type Bug --label S-needs-triage --body "$RUN"
+          fi
