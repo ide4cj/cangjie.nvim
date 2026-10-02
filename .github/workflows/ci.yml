@@ -88,7 +88,7 @@ jobs:
 
       # cjls's build of this branch's name, when cjls has one (a change made in both)
       - id: paired
-        uses: ide4cj/.github/actions/cjls@main
+        uses: ide4cj/.github/actions/cjls@master
         with:
           releases: false
       # else the pinned release or the nightly, by the plugin's own installer; until there is one,
