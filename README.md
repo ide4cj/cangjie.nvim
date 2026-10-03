@@ -55,7 +55,7 @@ x64 — checks it against the release's `SHA256SUMS`, and unpacks it into
 
 The release is the one the plugin pins in `lua/cangjie/install.lua`, the one it is tested with, so when the plugin manager updates the plugin to a
 newer pin, the next session downloads that release; Renovate moves the pin after each cjls release.
-`vim.g.cjls_version = 'v0.2.0'` picks another one; `vim.g.cjls_version = 'nightly'` follows cjls's
+`vim.g.cjls_version = 'v0.2.0'` picks another one; `vim.g.cjls_version = 'nightly-build'` follows cjls's
 master, rebuilt every night; `:CjlsInstall` downloads it again.
 
 Elsewhere, or to run your own build, put `cjls` on `PATH`, or point the server at it:
