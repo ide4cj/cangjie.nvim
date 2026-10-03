@@ -96,7 +96,7 @@ jobs:
       - name: cjls
         env:
           PAIRED: ${{ steps.paired.outputs.path }}
-          VERSION: ${{ matrix.cjls == 'nightly' && 'nightly' || '' }}
+          VERSION: ${{ matrix.cjls == 'nightly' && 'nightly-build' || '' }}
         run: |
           if [ -n "$PAIRED" ]; then
             echo "CJLS_BIN=$PAIRED" >> "$GITHUB_ENV"
