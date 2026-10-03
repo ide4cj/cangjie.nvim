@@ -57,24 +57,6 @@ return {
     vim.fn.delete(dir, 'rf')
   end,
 
-  ['nightly is downloaded from the release nightly-build and installed as nightly'] = function()
-    -- arrange
-    local _, why = install.asset()
-    if why then
-      t.skip(why)
-    end
-    local dir = t.tempdir()
-    local base = release(dir, 'nightly-build')
-
-    -- act
-    local err = run_install({ version = 'nightly', base = base, dir = dir .. '/data' })
-
-    -- assert
-    t.eq(nil, err, 'error')
-    t.eq('nightly', install.installed(dir .. '/data'), 'installed')
-    vim.fn.delete(dir, 'rf')
-  end,
-
   ['an archive that does not match SHA256SUMS is refused'] = function()
     -- arrange
     local asset, why = install.asset()

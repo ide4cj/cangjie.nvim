@@ -52,12 +52,6 @@ function M.wanted()
   return vim.g.cjls_version or CJLS_VERSION
 end
 
---- The tag of the release `version` names: `nightly` is cjls's pre-release `nightly-build` (cjls's
---- D38), any other is a tag already.
-function M.tag(version)
-  return version == 'nightly' and 'nightly-build' or version
-end
-
 --- The target and archive format of this platform, or nil and why not.
 function M.target()
   local uname = vim.uv.os_uname()
@@ -132,7 +126,7 @@ function M.install(opts)
   end
   local version = opts.version or M.wanted()
   local base = opts.base or RELEASES
-  local url = version and (base .. '/download/' .. M.tag(version)) or (base .. '/latest/download')
+  local url = version and (base .. '/download/' .. version) or (base .. '/latest/download')
   local dir = opts.dir or M.dir()
   local archive_name = asset.archive
 
