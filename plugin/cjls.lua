@@ -54,4 +54,18 @@ vim.api.nvim_create_autocmd('FileType', {
   end,
 })
 
+-- Folds from the server once it says it has them, in the window the buffer is attached in; they
+-- show where `foldmethod` is `expr`
+vim.api.nvim_create_autocmd('LspAttach', {
+  group = vim.api.nvim_create_augroup('cjls.folds', {}),
+  callback = function(args)
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+    if client and client.name == 'cjls' and client:supports_method('textDocument/foldingRange', args.buf) then
+      for _, win in ipairs(vim.fn.win_findbuf(args.buf)) do
+        vim.wo[win][0].foldexpr = 'v:lua.vim.lsp.foldexpr()'
+      end
+    end
+  end,
+})
+
 vim.lsp.enable('cjls')
