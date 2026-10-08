@@ -32,4 +32,27 @@ return {
     t.eq('cjls', client.server_info and client.server_info.name, 'serverInfo.name')
     t.eq(0, exit_code, 'exit code')
   end,
+
+  ['folds come from cjls'] = function()
+    if not vim.env.CJLS_BIN then
+      t.skip('no CJLS_BIN')
+    end
+    -- arrange: `main` spans lines 3 to 6
+    vim.cmd.edit(t.fixture .. '/src/main.cj')
+    vim.wo.foldmethod = 'expr'
+
+    -- act
+    t.wait('cjls did not attach and initialize (see :LspLog)', function()
+      local client = vim.lsp.get_clients({ name = 'cjls', bufnr = 0 })[1]
+      return client ~= nil and client.initialized
+    end)
+    t.wait('no folds arrived', function()
+      return vim.fn.foldlevel(4) > 0
+    end)
+
+    -- assert
+    t.eq('v:lua.vim.lsp.foldexpr()', vim.wo.foldexpr, 'foldexpr')
+    t.eq(1, vim.fn.foldlevel(4), 'the body folds')
+    t.eq(0, vim.fn.foldlevel(1), 'the package header does not')
+  end,
 }

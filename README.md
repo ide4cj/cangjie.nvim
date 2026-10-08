@@ -31,7 +31,7 @@ That is all: the server downloads itself, cjfmt is found in the SDK (`PATH` or `
 | File | What it does |
 |---|---|
 | `lsp/cjls.lua` | the server's `vim.lsp.Config`, in nvim-lspconfig's format: `cjls` from `PATH`, rooted at the nearest `cjpm.toml` |
-| `plugin/cjls.lua` | `vim.lsp.enable('cjls')`, `:CjlsInstall`, the download when there is no `cjls` on `PATH` |
+| `plugin/cjls.lua` | `vim.lsp.enable('cjls')`, `:CjlsInstall`, the download when there is no `cjls` on `PATH`, folds from the server |
 | `lua/cangjie/install.lua` | the download itself |
 | `lua/cangjie/cjfmt.lua` | cjfmt: found, run, its result applied |
 | `lua/conform/formatters/cjfmt.lua` | cjfmt for conform.nvim |
@@ -93,7 +93,7 @@ A file cjfmt cannot parse is left as it is, and the errors it reports are shown 
 
 ## Highlighting
 
-Until the server answers semantic tokens, highlighting, folds, indentation and text objects come
+Until the server answers semantic tokens, highlighting, indentation and text objects come
 from [tree-sitter-cangjie](https://github.com/ide4cj/tree-sitter-cangjie), at the revision
 pinned in `plugin/cangjie.lua`. With [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
 on its `main` branch (it needs the `tree-sitter` CLI and a C compiler):
@@ -110,13 +110,23 @@ vim.api.nvim_create_autocmd('FileType', {
   pattern = 'cangjie',
   callback = function(args)
     vim.treesitter.start(args.buf, 'cangjie')
-    vim.wo.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
     vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
   end,
 })
 ```
 
 Without the grammar Neovim falls back to its own `syntax/cangjie.vim`.
+
+## Folding
+
+Folds come from the server: once cjls attaches, the plugin sets `foldexpr` to
+`v:lua.vim.lsp.foldexpr()` in the buffer's windows. Neovim uses it where `foldmethod` is `expr`,
+which is not its default; to fold Cangjie by the server without everything closed at first:
+
+```lua
+vim.o.foldmethod = 'expr'
+vim.o.foldlevelstart = 99
+```
 
 ## Test
 
