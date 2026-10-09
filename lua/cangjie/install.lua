@@ -130,8 +130,15 @@ function M.install(opts)
   local dir = opts.dir or M.dir()
   local archive_name = asset.archive
 
-  local tmp = vim.fn.tempname()
+  -- downloaded and unpacked under `dir`, not in Neovim's temporary directory: the binary is moved
+  -- into `bin` by a rename, which cannot cross filesystems (EXDEV), and `/tmp` is often a tmpfs
+  -- and `%TEMP%` on another drive. Removed once done, whichever way.
+  local tmp = vim.fs.joinpath(dir, string.format('.download-%d-%x', vim.uv.getpid(), vim.uv.hrtime()))
   vim.fn.mkdir(tmp, 'p')
+  local function finish(err)
+    vim.fn.delete(tmp, 'rf')
+    done(err)
+  end
   local archive = vim.fs.joinpath(tmp, archive_name)
   local sums = vim.fs.joinpath(tmp, 'SHA256SUMS')
   local function curl(from, to)
@@ -165,9 +172,8 @@ function M.install(opts)
       local f = assert(io.open(vim.fs.joinpath(dir, 'version'), 'w'))
       f:write((version or 'latest') .. '\n')
       f:close()
-      vim.fn.delete(tmp, 'rf')
     end,
-  }, done)
+  }, finish)
 end
 
 return M

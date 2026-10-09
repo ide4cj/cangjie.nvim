@@ -57,6 +57,33 @@ return {
     vim.fn.delete(dir, 'rf')
   end,
 
+  ['a release is installed into a directory on another filesystem than the temporary one'] = function()
+    -- arrange
+    local asset, why = install.asset()
+    if not asset then
+      t.skip(why)
+    end
+    -- /dev/shm is a tmpfs of its own on Linux: a rename from the temporary directory into it
+    -- cannot be a rename, whether that directory is on disk or on another tmpfs
+    local shm = vim.uv.fs_stat('/dev/shm')
+    if not (shm and shm.type == 'directory') or vim.fn.has('linux') ~= 1 then
+      t.skip('no /dev/shm to install into')
+    end
+    local dir = t.tempdir()
+    local base = release(dir, 'v0.0.0')
+    local data = string.format('/dev/shm/cangjie.nvim-%d-%x', vim.uv.getpid(), vim.uv.hrtime())
+
+    -- act
+    local err = run_install({ version = 'v0.0.0', base = base, dir = data })
+
+    -- assert
+    t.eq(nil, err, 'error')
+    t.eq(1, vim.fn.executable(data .. '/bin/' .. asset.exe), 'executable')
+    t.eq({ 'bin', 'version' }, vim.fn.readdir(data), 'nothing left in the directory')
+    vim.fn.delete(data, 'rf')
+    vim.fn.delete(dir, 'rf')
+  end,
+
   ['an archive that does not match SHA256SUMS is refused'] = function()
     -- arrange
     local asset, why = install.asset()
@@ -73,6 +100,7 @@ return {
     -- assert
     assert(err and err:match('SHA256SUMS'), 'expected a checksum error, got ' .. tostring(err))
     t.eq(nil, install.installed(dir .. '/data'), 'installed')
+    t.eq({}, vim.fn.readdir(dir .. '/data'), 'nothing left in the directory')
     vim.fn.delete(dir, 'rf')
   end,
 }
