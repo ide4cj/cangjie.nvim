@@ -10,14 +10,15 @@ vim.filetype.add({ pattern = { ['.*%.cj%.macrocall'] = 'cangjie' } })
 
 -- `:TSInstall cangjie` fetches, compiles and installs the grammar with its queries. nvim-treesitter
 -- (its `main` branch) fires `User TSUpdate` whenever it reads its parser table, so registering
--- after the init file is soon enough.
+-- after the init file is soon enough. The grammar is ours, so it is followed at its `master`, not
+-- pinned: with no `revision`, nvim-treesitter downloads the branch's head on every `:TSUpdate`.
 vim.api.nvim_create_autocmd('User', {
   pattern = 'TSUpdate',
   callback = function()
     require('nvim-treesitter.parsers').cangjie = {
       install_info = {
         url = 'https://github.com/ide4cj/tree-sitter-cangjie',
-        revision = '388ea32f446d99530732d56987d0b931310f3541',
+        branch = 'master',
         queries = 'queries',
       },
     }

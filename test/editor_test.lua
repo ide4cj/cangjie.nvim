@@ -46,7 +46,7 @@ return {
     -- assert
     local cangjie = package.loaded['nvim-treesitter.parsers'].cangjie
     package.loaded['nvim-treesitter.parsers'] = nil
-    assert(cangjie and cangjie.install_info.url and cangjie.install_info.revision, 'the cangjie grammar is not registered')
+    assert(cangjie and cangjie.install_info.url and cangjie.install_info.branch, 'the cangjie grammar is not registered')
   end,
 
   ['checkhealth reports on the server, the formatter and the grammar, without errors'] = function()
