@@ -94,8 +94,8 @@ A file cjfmt cannot parse is left as it is, and the errors it reports are shown 
 ## Highlighting
 
 Until the server answers semantic tokens, highlighting, indentation and text objects come
-from [tree-sitter-cangjie](https://github.com/ide4cj/tree-sitter-cangjie), at the revision
-pinned in `plugin/cangjie.lua`. With [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
+from [tree-sitter-cangjie](https://github.com/ide4cj/tree-sitter-cangjie), at the head of its
+`master`: `:TSUpdate` downloads it again each time. With [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
 on its `main` branch (it needs the `tree-sitter` CLI and a C compiler):
 
 ```vim
