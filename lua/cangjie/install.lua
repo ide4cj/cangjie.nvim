@@ -8,7 +8,7 @@ local RELEASES = 'https://github.com/ide4cj/cjls/releases'
 
 -- The cjls release this plugin is tested with and downloads; Renovate moves it after each release
 -- (renovate.json). Nil would mean the latest.
-local CJLS_VERSION = 'v0.2.0'
+local CJLS_VERSION = 'v0.4.0'
 local IS_WINDOWS = vim.fn.has('win32') == 1
 local EXE = IS_WINDOWS and 'cjls.exe' or 'cjls'
 
