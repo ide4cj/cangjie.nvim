@@ -5,7 +5,7 @@
 -- Every `test/*_test.lua` returns its cases, `{ ['what it does'] = function() … end }`, each run
 -- in a buffer of its own. `TEST=<lua pattern>` runs those whose `file: case` matches. A case fails
 -- by throwing, and is skipped by `t.skip(why)`: those of the server without a cjls binary in
--- CJLS_BIN, those running cjfmt without cjfmt found as the plugin finds it.
+-- CJLS_BIN.
 
 -- the plugin as a plugin manager installs it: its root on the runtimepath
 local root = vim.fs.dirname(vim.fs.dirname(vim.fs.normalize(vim.fn.fnamemodify(debug.getinfo(1, 'S').source:sub(2), ':p'))))

@@ -1,5 +1,5 @@
--- Cangjie in Neovim, beyond the language server: cjfmt, the tree-sitter grammar for
--- nvim-treesitter, and the file types Neovim does not detect.
+-- Cangjie in Neovim, beyond the language server: the tree-sitter grammar for nvim-treesitter,
+-- and the file types Neovim does not detect.
 if vim.g.loaded_cangjie then
   return
 end
@@ -27,11 +27,3 @@ vim.api.nvim_create_autocmd('User', {
 
 -- The grammar's queries capture parameters as `@parameter`, nvim-treesitter's name before 0.10
 vim.api.nvim_set_hl(0, '@parameter.cangjie', { link = '@variable.parameter', default = true })
-
--- The buffer, or the lines given, through cjfmt (lua/cangjie/cjfmt.lua)
-vim.api.nvim_create_user_command('Cjfmt', function(args)
-  local err = require('cangjie.cjfmt').format_buffer({ range = args.range > 0 and { args.line1, args.line2 } or nil })
-  if err then
-    vim.notify(err, vim.log.levels.ERROR)
-  end
-end, { range = true, desc = 'Format the buffer, or the lines in the range, with cjfmt' })
