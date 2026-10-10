@@ -60,32 +60,6 @@ jobs:
           neovim: true
           version: ${{ matrix.nvim }}
 
-      # cjfmt comes with the Cangjie SDK: the nightly cjls builds with, installed by cjls's own script
-      - uses: actions/checkout@v7
-        with:
-          repository: ide4cj/cjls
-          path: .cjls
-          sparse-checkout: |
-            .cangjie-version
-            .github/actions/setup-cangjie
-      - id: cangjie
-        run: echo "tag=$(tr -d '[:space:]' < .cjls/.cangjie-version)" >> "$GITHUB_OUTPUT"
-        shell: bash
-      - uses: actions/cache@v6
-        with:
-          path: ${{ runner.temp }}/cangjie
-          key: cangjie-${{ runner.os }}-${{ runner.arch }}-${{ steps.cangjie.outputs.tag }}
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      # only CANGJIE_HOME, not the environment envsetup makes: the plugin has to find cjfmt and run
-      # it the way an editor started from a desktop would
-      - name: Cangjie SDK
-        run: |
-          GITHUB_ENV= GITHUB_PATH= python .cjls/.github/actions/setup-cangjie/setup.py "${{ steps.cangjie.outputs.tag }}" "$RUNNER_TEMP/cangjie" > /dev/null
-          echo "CANGJIE_HOME=$RUNNER_TEMP/cangjie/cangjie" >> "$GITHUB_ENV"
-        shell: bash
-
       # cjls's build of this branch's name, when cjls has one (a change made in both)
       - id: paired
         uses: ide4cj/.github/actions/cjls@master

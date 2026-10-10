@@ -2,7 +2,7 @@
 local t = require('t')
 
 return {
-  ['a Cangjie buffer is commented and indented as cjfmt writes it'] = function()
+  ['a Cangjie buffer is commented and indented as cjls formats it'] = function()
     -- act
     t.buffer({ 'main() {}' })
 
@@ -12,12 +12,12 @@ return {
     t.eq(true, vim.bo.expandtab, 'expandtab')
   end,
 
-  ['gq goes through cjfmt'] = function()
+  ['gq is left to the server'] = function()
     -- act
     t.buffer({ 'main() {}' })
 
     -- assert
-    t.eq("v:lua.require'cangjie.cjfmt'.formatexpr()", vim.bo.formatexpr)
+    t.eq('', vim.bo.formatexpr)
   end,
 
   ['another file type undoes the ftplugin'] = function()
@@ -28,7 +28,7 @@ return {
     vim.bo.filetype = 'text'
 
     -- assert
-    t.eq('', vim.bo.formatexpr, 'formatexpr')
+    t.eq('', vim.bo.suffixesadd, 'suffixesadd')
     t.eq(false, vim.bo.expandtab, 'expandtab')
   end,
 
@@ -49,7 +49,7 @@ return {
     assert(cangjie and cangjie.install_info.url and cangjie.install_info.branch, 'the cangjie grammar is not registered')
   end,
 
-  ['checkhealth reports on the server, the formatter and the grammar, without errors'] = function()
+  ['checkhealth reports on the server and the grammar, without errors'] = function()
     -- arrange: what the checks report, rather than the buffer :checkhealth fills when it likes
     local reported, saved = {}, vim.health
     local function record(kind)
@@ -66,7 +66,7 @@ return {
     -- assert
     assert(ok, err)
     local text = table.concat(reported, '\n')
-    t.eq({ '# cjls', '# cjfmt', '# tree-sitter' }, vim.tbl_filter(function(line)
+    t.eq({ '# cjls', '# tree-sitter' }, vim.tbl_filter(function(line)
       return vim.startswith(line, '#')
     end, reported), text)
     assert(not text:match('ERROR'), text)

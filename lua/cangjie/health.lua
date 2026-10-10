@@ -1,4 +1,4 @@
--- `:checkhealth cangjie`: which cjls and cjfmt the plugin runs, and whether the grammar is there.
+-- `:checkhealth cangjie`: which cjls the plugin runs, and whether the grammar is there.
 local M = {}
 
 local function version(cmd)
@@ -38,26 +38,6 @@ local function check_cjls()
   vim.health.warn('cjls is not enabled', { "vim.lsp.enable('cjls')" })
 end
 
-local function check_cjfmt()
-  vim.health.start('cjfmt')
-  local cjfmt = require('cangjie.cjfmt')
-  local exe, err = cjfmt.find()
-  if not exe then
-    return vim.health.warn(err or 'cjfmt not found', {
-      'Install the Cangjie SDK: cjfmt comes with it, in tools/bin',
-      'Set CANGJIE_HOME to it, or put its tools/bin on PATH',
-    })
-  end
-  local v = version({ exe, '-v' })
-  vim.health.ok(exe .. (v and (' (' .. v .. ')') or ''))
-  local config = cjfmt.config(vim.fn.getcwd())
-  if config then
-    vim.health.info('configuration: ' .. config)
-  else
-    vim.health.info('no cangjie-format.toml above ' .. vim.fn.getcwd() .. ": cjfmt formats with the SDK's")
-  end
-end
-
 local function check_grammar()
   vim.health.start('tree-sitter')
   if pcall(vim.treesitter.language.add, 'cangjie') then
@@ -69,7 +49,6 @@ end
 
 function M.check()
   check_cjls()
-  check_cjfmt()
   check_grammar()
 end
 
