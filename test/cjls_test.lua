@@ -73,6 +73,52 @@ return {
     t.eq(0, vim.fn.foldlevel(1), 'the package header does not')
   end,
 
+  ['settings.cjls reaches cjls: the projects of linkedProjects are loaded'] = function()
+    if not vim.env.CJLS_BIN then
+      t.skip('no CJLS_BIN')
+    end
+    -- arrange: an empty workspace of its own, attached to no buffer, so no other case meets this
+    -- client; and a directory outside it, loaded only when linked
+    local root = t.tempdir()
+    local linked = t.tempdir()
+    t.write(linked .. '/linked.cj', { 'func findLinked() {}' })
+    local config = vim.tbl_deep_extend('force', vim.lsp.config.cjls, {
+      root_dir = root,
+      settings = { cjls = { linkedProjects = { linked } } },
+    })
+
+    -- act: started with them, cjls has them from `initializationOptions` (and, since it reads its
+    -- settings, from `workspace/configuration` as well); it loads in the background, answering
+    -- nothing or ContentModified meanwhile, so it is asked until it has: a hang is CI's to end
+    local client = assert(vim.lsp.get_client_by_id(assert(vim.lsp.start(config, { attach = false }))))
+    local ok, symbols = pcall(function()
+      while true do
+        local answer
+        client:request('workspace/symbol', { query = 'findLinked' }, function(err, result)
+          answer = { err = err, result = result or {} }
+        end)
+        while not answer do
+          vim.wait(100, function()
+            return answer ~= nil
+          end)
+        end
+        local modified = answer.err and answer.err.code == vim.lsp.protocol.ErrorCodes.ContentModified
+        assert(modified or not answer.err, vim.inspect(answer.err))
+        if not modified and #answer.result > 0 then
+          return answer.result
+        end
+      end
+    end)
+    client:stop()
+    assert(ok, symbols)
+
+    -- assert
+    t.eq({ 'findLinked' }, vim.tbl_map(function(s)
+      return s.name
+    end, symbols))
+    t.eq('linked.cj', vim.fs.basename(vim.uri_to_fname(symbols[1].location.uri)), 'the file')
+  end,
+
   ['the buffer is formatted by cjls'] = function()
     -- arrange
     attached(UNFORMATTED)

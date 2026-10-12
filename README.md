@@ -63,6 +63,39 @@ vim.lsp.config('cjls', { cmd = { '/path/to/cjls/target/release/bin/cjls' } })
 
 The plugin then downloads nothing.
 
+## Settings
+
+The server's settings go under `settings.cjls` of its config, as rust-analyzer's under
+`settings['rust-analyzer']`:
+
+```lua
+vim.lsp.config('cjls', {
+  settings = { cjls = { linkedProjects = { '/path/to/another/project' } } },
+})
+```
+
+The server starts with them (`lsp/cjls.lua` passes them as its `initializationOptions`, unless
+`init_options` is set) and asks Neovim for them again once initialized
+([cjls's D79](https://github.com/ide4cj/cjls/blob/master/docs/adr/0079-settings-are-r1s.md)). Changed
+in a running client, they reach the server by a notification of yours:
+
+```lua
+local client = vim.lsp.get_clients({ name = 'cjls' })[1]
+client.settings.cjls.linkedProjects = { '/path/to/another/project' }
+client:notify('workspace/didChangeConfiguration', { settings = vim.NIL })
+```
+
+What cjls reads, as `cjls --config-schema` describes it (CI holds this table to the cjls the plugin
+pins; a key a cjls does not know, it leaves alone):
+
+<!-- settings: made by scripts/settings.lua from `cjls --config-schema` -->
+| `settings.cjls.` | type | default | |
+|---|---|---|---|
+| `linkedProjects` | string[] | `[]` | Projects to load, as rust-analyzer's: each an absolute path or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides. |
+| `cangjieHome` | string or null | `null` | The Cangjie SDK, an absolute path or a `file:` URI: looked for first, before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`. `std` is taken from it, and `${CANGJIE_HOME}` in a project's paths expands to it. |
+| `cangjieSrc` | string or null | `null` | The sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`. Go to definition on a declaration of `std` goes there; `cjls fetch-src` puts them in the SDK's `src`. |
+<!-- /settings -->
+
 ## Formatting
 
 The server formats, in its own style ([cjls's D60](https://github.com/ide4cj/cjls/blob/master/docs/adr/0060-the-formatter-keeps-line-breaks.md)):
@@ -122,7 +155,10 @@ vim.o.foldlevelstart = 99
 nvim --clean --headless -u test/run.lua                           # all of test/*_test.lua
 CJLS_BIN=/path/to/cjls nvim --clean --headless -u test/run.lua    # the server too
 TEST=cjls nvim --clean --headless -u test/run.lua                 # the cases matching a Lua pattern
+nvim -l scripts/settings.lua /path/to/cjls                        # the server's settings into README.md
 ```
+
+CI fails while the settings in this README are not those of the pinned cjls.
 
 A case needing what is not there is skipped, not failed: the server's without `CJLS_BIN`. CI runs
 them all on macOS, Linux and Windows with the latest cjls release, downloaded by
