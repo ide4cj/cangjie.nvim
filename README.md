@@ -29,9 +29,10 @@ which cjls the plugin runs, and what to do when there is none.
 
 | File | What it does |
 |---|---|
-| `lsp/cjls.lua` | the server's `vim.lsp.Config`, in nvim-lspconfig's format: `cjls` from `PATH`, rooted at the nearest `cjpm.toml` |
-| `plugin/cjls.lua` | `vim.lsp.enable('cjls')`, `:CjlsInstall`, the download when there is no `cjls` on `PATH`, folds from the server |
+| `lsp/cjls.lua` | the server's `vim.lsp.Config`, in nvim-lspconfig's format: `cjls` from `PATH`, rooted at the nearest `cjpm.toml`, a file cjls expanded at the root it was written under |
+| `plugin/cjls.lua` | `vim.lsp.enable('cjls')`, `:CjlsInstall`, the download when there is no `cjls` on `PATH`, folds from the server, `:CjlsExpandMacro` |
 | `lua/cangjie/install.lua` | the download itself |
+| `lua/cangjie/expand.lua` | macro expansion: `:CjlsExpandMacro`, and the files cjls expands, read-only |
 | `lua/cangjie/health.lua` | `:checkhealth cangjie` |
 | `ftplugin/cangjie.lua` | `//` comments (`gc`), 4-space indentation as cjls formats |
 | `plugin/cangjie.lua` | `*.cj.macrocall` as Cangjie; the tree-sitter grammar for nvim-treesitter |
@@ -147,6 +148,25 @@ which is not its default; to fold Cangjie by the server without everything close
 ```lua
 vim.o.foldmethod = 'expr'
 vim.o.foldlevelstart = 99
+```
+
+## Macro expansion
+
+What a macro call expands to, from cjls ([cjls's D103](https://github.com/ide4cj/cjls/blob/master/docs/adr/0103-an-expansion-is-shown-as-a-request-and-as-a-read-only-file.md)),
+two ways:
+
+- `:CjlsExpandMacro`, the cursor on a call's head (`@`, its name or its attribute): the expansion of
+  that call alone, in a split, a scratch buffer `cjls://expand/<name>`. A cjls that does not
+  expand macros yet (no `experimental.expandMacro`) is said to.
+- The code action "Expand macro" (`:lua vim.lsp.buf.code_action()`, `gra`): cjls writes the whole
+  file with its calls expanded, `<root>/.cjls/expanded/<path>.macrocall`, and Neovim opens it, the
+  call's expansion selected. The buffer is read-only; hover, go to definition and highlight work
+  in it, through the cjls of the source, until the source changes and the action is run again.
+
+A binding of your own, for instance:
+
+```lua
+vim.keymap.set('n', '<leader>em', '<Cmd>CjlsExpandMacro<CR>', { desc = 'Expand macro' })
 ```
 
 ## Test

@@ -21,6 +21,21 @@ return {
   cmd = { 'cjls' },
   filetypes = { 'cangjie' },
   root_markers = { 'cjpm.toml' },
+  -- the nearest `cjpm.toml` (or the `root_markers` one sets); but a file the server expanded,
+  -- `<root>/.cjls/expanded/<path>.macrocall`, belongs to the server at `<root>`, which wrote it and
+  -- answers hover and definition in it
+  root_dir = function(bufnr, on_dir)
+    local root = require('cangjie.expand').root_of(vim.api.nvim_buf_get_name(bufnr))
+    local config = vim.lsp.config.cjls
+    on_dir(root or vim.fs.root(bufnr, config and config.root_markers or { 'cjpm.toml' }))
+  end,
+  handlers = {
+    -- a file the server expanded again is shown as written now, not as a buffer last read it
+    ['window/showDocument'] = function(err, params, ctx)
+      require('cangjie.expand').reload(params and params.uri)
+      return vim.lsp.handlers['window/showDocument'](err, params, ctx)
+    end,
+  },
   -- the section `cjls` is also what the server starts with, its `initializationOptions` unless
   -- they are set; it asks for the section again once initialized
   before_init = function(params, config)
