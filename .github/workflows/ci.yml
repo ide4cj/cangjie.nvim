@@ -81,6 +81,12 @@ jobs:
           fi
         shell: bash
 
+      # the settings README.md lists are those of the cjls the plugin pins (cjls's D79)
+      - name: The server's settings
+        if: matrix.cjls == 'pin' && env.CJLS_BIN != ''
+        run: nvim -l scripts/settings.lua --check "$CJLS_BIN"
+        shell: bash
+
       - run: nvim --clean --headless -u test/run.lua
         shell: bash
 
