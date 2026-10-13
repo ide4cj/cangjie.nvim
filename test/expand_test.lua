@@ -29,11 +29,25 @@ local function ask_until(client, method, make_params, done)
   end
 end
 
+--- Whether the cjls of CJLS_BIN finds an SDK, whose std `@Derive` comes from, as the server does:
+--- without one no expansion ever comes.
+local function finds_std()
+  local out = vim.system({ vim.env.CJLS_BIN, 'project', '--dir', t.fixture }, { text = true }):wait()
+  local ok, project = pcall(vim.json.decode, out.stdout or '')
+  return ok
+    and vim.iter(project.binaries or {}):any(function(b)
+      return b.name == 'std' and #(b.paths or {}) > 0
+    end)
+end
+
 --- The fixture's `derive.cj`, the cursor on `@Derive[Equatable]`, once cjls is attached to it and
 --- says it expands macros, or skips the case.
 local function on_derive()
   if not vim.env.CJLS_BIN then
     t.skip('no CJLS_BIN')
+  end
+  if not finds_std() then
+    t.skip('cjls finds no SDK')
   end
   vim.cmd.edit(t.fixture .. '/src/derive.cj')
   local client
