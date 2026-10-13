@@ -85,8 +85,8 @@ client.settings.cjls.linkedProjects = { '/path/to/another/project' }
 client:notify('workspace/didChangeConfiguration', { settings = vim.NIL })
 ```
 
-What cjls reads, as `cjls --config-schema` describes it (CI holds this table to the cjls the plugin
-pins; a key a cjls does not know, it leaves alone):
+What cjls reads, as `cjls --config-schema` describes it (the cjls the plugin pins, written by a bot
+in the PR that moves the pin; a key a cjls does not know, it leaves alone):
 
 <!-- settings: made by scripts/settings.lua from `cjls --config-schema` -->
 | `settings.cjls.` | type | default | |
@@ -158,7 +158,8 @@ TEST=cjls nvim --clean --headless -u test/run.lua                 # the cases ma
 nvim -l scripts/settings.lua /path/to/cjls                        # the server's settings into README.md
 ```
 
-CI fails while the settings in this README are not those of the pinned cjls.
+The PR that moves the pin gets the settings of the cjls it pins in this README as a commit of a
+bot's (cjls's D107); a pin moved by hand runs the script itself.
 
 A case needing what is not there is skipped, not failed: the server's without `CJLS_BIN`. CI runs
 them all on macOS, Linux and Windows with the latest cjls release, downloaded by

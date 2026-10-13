@@ -1,0 +1,39 @@
+name: Settings
+
+# The server's settings README.md lists are those of the cjls the plugin pins (cjls's D79, D107):
+# made again in the PR that moves CJLS_VERSION, Renovate's, and pushed to it when they differ.
+# No other CI checks them: a paired branch's cjls may have settings the pin has not.
+on:
+  pull_request:
+    paths: [lua/cangjie/install.lua, .github/workflows/settings.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  settings:
+    name: The server's settings
+    # the app's token, which a fork's PR does not get, pushes; Renovate's PRs are this repository's
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ steps.app.outputs.token }}
+      - id: pin
+        run: echo "version=$(sed -n "s/^local CJLS_VERSION = '\(.*\)'$/\1/p" lua/cangjie/install.lua)" >> "$GITHUB_OUTPUT"
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - uses: ide4cj/.github/actions/settings@settings-follow-pin
+        with:
+          version: ${{ steps.pin.outputs.version }}
+          run: nvim -l scripts/settings.lua "$CJLS"
