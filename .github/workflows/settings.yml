@@ -33,7 +33,7 @@ jobs:
         with:
           neovim: true
           version: stable
-      - uses: ide4cj/.github/actions/settings@settings-follow-pin
+      - uses: ide4cj/.github/actions/settings@master
         with:
           version: ${{ steps.pin.outputs.version }}
           run: nvim -l scripts/settings.lua "$CJLS"
