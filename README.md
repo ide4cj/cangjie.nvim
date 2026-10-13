@@ -138,6 +138,10 @@ vim.api.nvim_create_autocmd('FileType', {
 
 Without the grammar Neovim falls back to its own `syntax/cangjie.vim`.
 
+The plugin links the server's semantic tokens to the captures the grammar gives the same token
+(`this` to `@variable.builtin`, `Int64` to `@type.builtin`, …), so a token keeps its color when
+the server attaches; a link of your own, or your colorscheme's, takes precedence.
+
 ## Folding
 
 Folds come from the server: once cjls attaches, the plugin sets `foldexpr` to

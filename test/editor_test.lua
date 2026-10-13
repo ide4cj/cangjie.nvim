@@ -49,6 +49,26 @@ return {
     assert(cangjie and cangjie.install_info.url and cangjie.install_info.branch, 'the cangjie grammar is not registered')
   end,
 
+  ["the server's semantic tokens are highlighted as the grammar captures them"] = function()
+    -- arrange
+    local links = {
+      ['@lsp.typemod.variable.defaultLibrary.cangjie'] = '@variable.builtin',
+      ['@lsp.typemod.type.defaultLibrary.cangjie'] = '@type.builtin',
+      ['@lsp.type.typeParameter.cangjie'] = '@type',
+      ['@lsp.type.macro.cangjie'] = '@function.macro',
+      ['@lsp.typemod.method.constructor.cangjie'] = '@constructor',
+      ['@lsp.typemod.variable.constant.cangjie'] = '@constant',
+    }
+
+    -- act
+    t.buffer({ 'main() {}' })
+
+    -- assert
+    for group, link in pairs(links) do
+      t.eq(link, vim.api.nvim_get_hl(0, { name = group }).link, group)
+    end
+  end,
+
   ['checkhealth reports on the server and the grammar, without errors'] = function()
     -- arrange: what the checks report, rather than the buffer :checkhealth fills when it likes
     local reported, saved = {}, vim.health
