@@ -22,12 +22,12 @@ return {
   filetypes = { 'cangjie' },
   root_markers = { 'cjpm.toml' },
   -- the nearest `cjpm.toml` (or the `root_markers` one sets); but a file the server expanded,
-  -- `<root>/.cjls/expanded/<path>.macrocall`, belongs to the server at `<root>`, which wrote it and
-  -- answers hover and definition in it
+  -- `<project>/.cache/cjls/expanded/<path>.macrocall`, belongs to the server of its source, which
+  -- wrote it and answers hover and definition in it
   root_dir = function(bufnr, on_dir)
-    local root = require('cangjie.expand').root_of(vim.api.nvim_buf_get_name(bufnr))
+    local source = require('cangjie.expand').source_of(vim.api.nvim_buf_get_name(bufnr))
     local config = vim.lsp.config.cjls
-    on_dir(root or vim.fs.root(bufnr, config and config.root_markers or { 'cjpm.toml' }))
+    on_dir(vim.fs.root(source or bufnr, config and config.root_markers or { 'cjpm.toml' }))
   end,
   handlers = {
     -- a file the server expanded again is shown as written now, not as a buffer last read it

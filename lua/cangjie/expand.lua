@@ -1,21 +1,57 @@
 -- Macro expansion through cjls (its `cjls/expandMacro` and `cjls.expandMacro`, cjls's D103): the
--- expansion at the cursor in a scratch buffer, and the files the server writes under
--- `<root>/.cjls/expanded/`, which belong to that root and are not to be edited.
+-- expansion at the cursor in a scratch buffer, and the files the server writes into the `expanded/`
+-- of its directory (cjls's D106), which belong to the server of their source and are not to be
+-- edited.
 local M = {}
 
---- The root of the server that wrote `path`, if it is one of its expanded files
---- (`<root>/.cjls/expanded/<path under root>.macrocall`, the innermost `.cjls/expanded`), else nil.
+local SUFFIX = '.macrocall'
+
+--- The project directory of the cjls directory `dir`: `<base>` for `<base>/.cache/cjls`, else what
+--- its `BASE` names, for one of the user's cache (which has `LAYOUT` beside it); nil for neither.
+---@param dir string
+---@return string?
+local function base_of(dir)
+  local base = dir:match('^(.*)/%.cache/cjls$')
+  if base then
+    return base ~= '' and base or '/'
+  end
+  if vim.uv.fs_stat(dir .. '/LAYOUT') then
+    local file = io.open(dir .. '/BASE', 'rb')
+    if file then
+      local named = file:read('*a')
+      file:close()
+      return named ~= '' and vim.fs.normalize(named) or nil
+    end
+  end
+  return nil
+end
+
+--- The source file `path` is the expanded file of, as cjls maps it back (its `sourceOfExpanded`):
+--- `<cjls dir>/expanded/<path under the project>.macrocall`, the innermost `expanded/` of a cjls
+--- directory, else nil.
 ---@param path string
 ---@return string?
-function M.root_of(path)
-  local root = vim.fs.normalize(path):match('^(.*)/%.cjls/expanded/.+%.macrocall$')
-  return root ~= '' and root or nil
+function M.source_of(path)
+  path = vim.fs.normalize(path)
+  if not vim.endswith(path, SUFFIX) or vim.fs.basename(path) == SUFFIX then
+    return nil
+  end
+  for dir in vim.fs.parents(path) do
+    if vim.fs.basename(dir) == 'expanded' then
+      local base = base_of(vim.fs.dirname(dir))
+      if base then
+        local under = path:sub(#dir + 2, -#SUFFIX - 1)
+        return base == '/' and '/' .. under or base .. '/' .. under
+      end
+    end
+  end
+  return nil
 end
 
 --- Whether `path` is a file the server expanded.
 ---@param path string
 function M.is_expanded(path)
-  return M.root_of(path) ~= nil
+  return M.source_of(path) ~= nil
 end
 
 --- Reads the buffer of `uri` again, if it is a loaded expanded file nobody changed: the server has

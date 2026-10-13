@@ -1,5 +1,5 @@
 -- Macro expansion (cjls's D103): `:CjlsExpandMacro` in a scratch split, and the files the server
--- expands under `<root>/.cjls/expanded/`, read-only and attached to the server that wrote them.
+-- expands under `.cache/cjls/expanded/`, read-only and attached to the server of their source.
 local t = require('t')
 local expand = require('cangjie.expand')
 
@@ -64,9 +64,10 @@ local function notified(fn)
 end
 
 return {
-  ['an expanded file belongs to the root of the server that wrote it'] = function()
+  ['an expanded file belongs to the root of the server of its source'] = function()
     -- arrange: a workspace whose module has a cjpm.toml of its own
     local ws = t.tempdir()
+    t.write(ws .. '/cjpm.toml', { '[workspace]' })
     t.write(ws .. '/mod/cjpm.toml', { '[package]' })
     local function root_dir(path)
       local bufnr = vim.fn.bufadd(path)
@@ -78,16 +79,40 @@ return {
     end
 
     -- act, assert
-    t.eq(ws, root_dir(ws .. '/.cjls/expanded/mod/src/a.cj.macrocall'), 'an expanded file')
+    t.eq(ws .. '/mod', root_dir(ws .. '/.cache/cjls/expanded/mod/src/a.cj.macrocall'), 'an expanded file')
     t.eq(ws .. '/mod', root_dir(ws .. '/mod/src/a.cj'), 'a source file')
     t.eq(ws .. '/mod', root_dir(ws .. '/mod/src/a.cj.macrocall'), "cjc's dump")
-    t.eq(nil, expand.root_of(ws .. '/.cjls/expanded/a.cj'), 'not a .macrocall')
+    t.eq(nil, expand.source_of(ws .. '/.cache/cjls/expanded/a.cj'), 'not a .macrocall')
+  end,
+
+  ['an expanded file maps back to its source, under its project'] = function()
+    -- arrange
+    local ws = t.tempdir()
+
+    -- act, assert
+    t.eq(ws .. '/mod/src/a.cj', expand.source_of(ws .. '/mod/.cache/cjls/expanded/src/a.cj.macrocall'))
+    t.eq(nil, expand.source_of(ws .. '/expanded/src/a.cj.macrocall'), 'expanded/ of no cjls directory')
+    t.eq(nil, expand.source_of(ws .. '/.cache/cjls/expanded/.macrocall'), 'no source name')
+  end,
+
+  ["an expanded file of the user's cache maps back through BASE"] = function()
+    -- arrange: the project could not be written, so cjls wrote into its directory of the user's cache
+    local project = t.tempdir()
+    local dir = t.tempdir() .. '/cjls/project-0123abcd'
+    t.write(dir .. '/LAYOUT', { '1' })
+    vim.fn.writefile({ project }, dir .. '/BASE', 'b')
+    local nobase = t.tempdir() .. '/cjls/other-0123abcd'
+    vim.fn.mkdir(nobase, 'p')
+
+    -- act, assert
+    t.eq(project .. '/src/a.cj', expand.source_of(dir .. '/expanded/src/a.cj.macrocall'))
+    t.eq(nil, expand.source_of(nobase .. '/expanded/src/a.cj.macrocall'), 'no BASE')
   end,
 
   ['an expanded file opens read-only and unmodifiable, a dump of cjc does not'] = function()
     -- arrange
     local root = t.tempdir()
-    local expanded = t.write(root .. '/.cjls/expanded/src/a.cj.macrocall', { 'main() {}' })
+    local expanded = t.write(root .. '/.cache/cjls/expanded/src/a.cj.macrocall', { 'main() {}' })
     local dump = t.write(root .. '/src/a.cj.macrocall', { 'main() {}' })
 
     -- act
@@ -104,7 +129,7 @@ return {
 
   ['an expanded file the server wrote again is read again when shown'] = function()
     -- arrange
-    local path = t.write(t.tempdir() .. '/.cjls/expanded/src/a.cj.macrocall', { 'old' })
+    local path = t.write(t.tempdir() .. '/.cache/cjls/expanded/src/a.cj.macrocall', { 'old' })
     vim.cmd.edit(path)
     vim.fn.writefile({ 'new' }, path)
 
@@ -213,7 +238,7 @@ return {
     ask_until(client, 'textDocument/codeAction', range_params, function(actions)
       return vim.iter(actions or {}):any(expand_action)
     end)
-    local expanded = t.fixture .. '/.cjls/expanded/src/derive.cj.macrocall'
+    local expanded = t.fixture .. '/.cache/cjls/expanded/src/derive.cj.macrocall'
 
     -- act: executeCommand, then window/showDocument
     vim.lsp.buf.code_action({ apply = true, filter = expand_action })
@@ -226,7 +251,7 @@ return {
 
     -- assert
     local text = table.concat(t.lines(), '\n')
-    pcall(vim.fn.delete, t.fixture .. '/.cjls', 'rf')
+    pcall(vim.fn.delete, t.fixture .. '/.cache', 'rf')
     assert(text:find('extend', 1, true), 'no extend in the expanded file:\n' .. text)
     t.eq('cangjie', vim.bo.filetype, 'filetype')
     t.eq(false, vim.bo.modifiable, 'modifiable')

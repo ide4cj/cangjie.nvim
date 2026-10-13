@@ -75,7 +75,7 @@ vim.api.nvim_create_user_command('CjlsExpandMacro', function()
   require('cangjie.expand').expand()
 end, { desc = 'Show what the macro call at the cursor expands to (cjls)' })
 
--- The files cjls expands into `<root>/.cjls/expanded/` are its own, written again by "Expand macro"
+-- The files cjls expands into `.cache/cjls/expanded/` are its own, written again by "Expand macro"
 vim.api.nvim_create_autocmd('BufReadPost', {
   pattern = '*.macrocall',
   group = vim.api.nvim_create_augroup('cjls.expanded', {}),

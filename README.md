@@ -159,7 +159,7 @@ two ways:
   that call alone, in a split, a scratch buffer `cjls://expand/<name>`. A cjls that does not
   expand macros yet (no `experimental.expandMacro`) is said to.
 - The code action "Expand macro" (`:lua vim.lsp.buf.code_action()`, `gra`): cjls writes the whole
-  file with its calls expanded, `<root>/.cjls/expanded/<path>.macrocall`, and Neovim opens it, the
+  file with its calls expanded, `<project>/.cache/cjls/expanded/<path>.macrocall`, and Neovim opens it, the
   call's expansion selected. The buffer is read-only; hover, go to definition and highlight work
   in it, through the cjls of the source, until the source changes and the action is run again.
 
