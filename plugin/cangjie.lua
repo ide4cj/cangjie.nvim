@@ -25,5 +25,13 @@ vim.api.nvim_create_autocmd('User', {
   end,
 })
 
--- The grammar's queries capture parameters as `@parameter`, nvim-treesitter's name before 0.10
-vim.api.nvim_set_hl(0, '@parameter.cangjie', { link = '@variable.parameter', default = true })
+-- cjls names a token as the grammar's queries capture it, colors being the theme's (cjls D105);
+-- Neovim links no `@lsp.typemod.*`, and type parameters and macros elsewhere than the grammar.
+-- A typemod's mark is above its type's (priority 127 to 125): `@constructor` wins over
+-- `@lsp.type.method`, `@constant` over `@lsp.type.variable`
+vim.api.nvim_set_hl(0, '@lsp.typemod.variable.defaultLibrary.cangjie', { link = '@variable.builtin', default = true })
+vim.api.nvim_set_hl(0, '@lsp.typemod.type.defaultLibrary.cangjie', { link = '@type.builtin', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.typeParameter.cangjie', { link = '@type', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.macro.cangjie', { link = '@function.macro', default = true })
+vim.api.nvim_set_hl(0, '@lsp.typemod.method.constructor.cangjie', { link = '@constructor', default = true })
+vim.api.nvim_set_hl(0, '@lsp.typemod.variable.constant.cangjie', { link = '@constant', default = true })
