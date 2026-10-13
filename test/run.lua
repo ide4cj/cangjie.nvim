@@ -28,6 +28,7 @@ local function run()
       local id = vim.fn.fnamemodify(file, ':t:r') .. ': ' .. name
       if not vim.env.TEST or id:match(vim.env.TEST) then
         vim.cmd('silent! %bwipeout!')
+        require('t').case = id
         local ok, err = xpcall(cases[name], function(e)
           return type(e) == 'table' and e or debug.traceback(e, 2)
         end)
