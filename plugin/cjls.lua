@@ -68,4 +68,23 @@ vim.api.nvim_create_autocmd('LspAttach', {
   end,
 })
 
+-- Macro expansion: what the call at the cursor expands to, in a split (`cjls/expandMacro`); the
+-- server's code action "Expand macro" writes the whole file expanded and shows it, which Neovim
+-- does by itself (`window/showDocument`)
+vim.api.nvim_create_user_command('CjlsExpandMacro', function()
+  require('cangjie.expand').expand()
+end, { desc = 'Show what the macro call at the cursor expands to (cjls)' })
+
+-- The files cjls expands into `.cache/cjls/expanded/` are its own, written again by "Expand macro"
+vim.api.nvim_create_autocmd('BufReadPost', {
+  pattern = '*.macrocall',
+  group = vim.api.nvim_create_augroup('cjls.expanded', {}),
+  callback = function(args)
+    local expand = require('cangjie.expand')
+    if expand.is_expanded(args.match) then
+      expand.protect(args.buf)
+    end
+  end,
+})
+
 vim.lsp.enable('cjls')

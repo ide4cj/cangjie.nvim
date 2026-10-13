@@ -27,6 +27,9 @@ local function run()
     for _, name in ipairs(names) do
       local id = vim.fn.fnamemodify(file, ':t:r') .. ': ' .. name
       if not vim.env.TEST or id:match(vim.env.TEST) then
+        -- what the last case scheduled first (cjls's `root_dir` starts a client on the next tick),
+        -- so it never meets a buffer wiped
+        vim.wait(0)
         vim.cmd('silent! %bwipeout!')
         require('t').case = id
         local ok, err = xpcall(cases[name], function(e)
