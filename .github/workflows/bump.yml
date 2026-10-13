@@ -1,0 +1,90 @@
+name: Bump
+
+# A release of the plugin (cjls's D32), once Renovate's PR that moves the cjls pin (CJLS_VERSION in
+# lua/cangjie/install.lua) is merged, or by hand: `cog bump --auto` from the conventional commits
+# since the last tag, CHANGELOG.md and the tag, then release.yml.
+on:
+  push:
+    branches: [master]
+    paths: [lua/cangjie/install.lua]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # a push that changes install.lua without moving the pin releases nothing
+  pin:
+    name: The pin moved
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      moved: ${{ steps.pin.outputs.moved }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: pin
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          pin() { git show "$1:lua/cangjie/install.lua" 2>/dev/null | sed -n "s/^local CJLS_VERSION = '\(.*\)'$/\1/p"; }
+          if [ "$GITHUB_EVENT_NAME" != push ]; then
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          elif [ "$(pin "$BEFORE")" != "$(pin HEAD)" ]; then
+            echo "::notice::cjls $(pin "$BEFORE") -> $(pin HEAD)"
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::the pin is still $(pin HEAD): nothing to release"
+          fi
+
+  ci:
+    needs: pin
+    if: needs.pin.outputs.moved
+    uses: ./.github/workflows/ci.yml
+    # what its jobs ask for: `report` opens issues, on a daily run alone
+    permissions:
+      contents: read
+      issues: write
+
+  bump:
+    name: cog bump
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      # the organization's app gets past the ruleset on master; GITHUB_TOKEN until it is installed
+      - id: app
+        if: vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ steps.app.outputs.token || github.token }}
+      - uses: cocogitto/cocogitto-action@v4
+        with:
+          command: check
+      # the first release is v0.1.0: what `cog bump --auto` makes of the untagged history
+      - id: bump
+        run: |
+          next=$(cog bump --auto --dry-run 2>/dev/null || true)
+          if [ -z "$next" ]; then echo "::notice::nothing to release"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cog bump --auto
+          echo "version=${next#v}" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: bump
+    if: needs.bump.outputs.version
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.bump.outputs.version }}
+    permissions:
+      contents: write

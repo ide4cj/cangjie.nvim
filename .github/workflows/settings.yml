@@ -1,11 +1,12 @@
 name: Settings
 
-# The server's settings README.md lists are those of the cjls the plugin pins (cjls's D79, D107):
-# made again in the PR that moves CJLS_VERSION, Renovate's, and pushed to it when they differ.
+# The server's settings README.md and doc/cangjie.txt list are those of the cjls the plugin pins
+# (cjls's D79, D107): made again in the PR that moves CJLS_VERSION, Renovate's, or that changes how
+# they are written, and pushed to it when they differ.
 # No other CI checks them: a paired branch's cjls may have settings the pin has not.
 on:
   pull_request:
-    paths: [lua/cangjie/install.lua, .github/workflows/settings.yml]
+    paths: [lua/cangjie/install.lua, scripts/settings.lua, doc/cangjie.txt, .github/workflows/settings.yml]
 
 permissions:
   contents: read

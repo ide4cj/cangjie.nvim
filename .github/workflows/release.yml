@@ -1,0 +1,48 @@
+name: Release
+
+# A version of the plugin, `cog bump` in bump.yml: its GitHub release, the notes its section of
+# CHANGELOG.md and the cjls it downloads. Nothing to build or publish: a plugin manager takes the
+# tag from git.
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version, tagged already (without the v)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ inputs.version }}
+          fetch-depth: 0
+      - uses: cocogitto/cocogitto-action@v4
+        with:
+          command: check
+      - name: Notes
+        run: |
+          pin=$(sed -n "s/^local CJLS_VERSION = '\(.*\)'$/\1/p" lua/cangjie/install.lua)
+          {
+            echo "Downloads [cjls $pin](https://github.com/ide4cj/cjls/releases/tag/$pin) at the first Cangjie buffer, unless there is a \`cjls\` on \`PATH\`."
+            echo
+            cog changelog --at "v$VERSION"
+          } > notes.md
+          cat notes.md
+      - run: gh release create "v$VERSION" --title "v$VERSION" --verify-tag --notes-file notes.md

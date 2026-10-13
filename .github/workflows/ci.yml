@@ -7,6 +7,7 @@ on:
   push:
     branches: [master]
   pull_request:
+  workflow_call: # bump.yml, before a release
   schedule:
     - cron: "0 5 * * *" # after cjls's nightly
   workflow_dispatch:

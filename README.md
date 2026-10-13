@@ -3,6 +3,7 @@
 [Cangjie](https://cangjie-lang.cn) in Neovim 0.11 or newer: the [cjls](https://github.com/ide4cj/cjls)
 language server, started for `.cj` files and downloaded on first use, which also formats; `//`
 comments and indentation as it formats; and the tree-sitter grammar for nvim-treesitter.
+Inside Neovim, `:help cangjie` says what this README does.
 
 ## Install
 
@@ -16,6 +17,16 @@ vim.pack.add({ 'https://github.com/ide4cj/cangjie.nvim' })
 
 ```lua
 { 'ide4cj/cangjie.nvim' }
+```
+
+That follows the plugin's `master`. Each [release](https://github.com/ide4cj/cangjie.nvim/releases)
+is a tag `vX.Y.Z`, made once the plugin moves to a new cjls ([CHANGELOG.md](CHANGELOG.md) says what
+changed); to follow those instead:
+
+```lua
+vim.pack.add({ { src = 'https://github.com/ide4cj/cangjie.nvim', version = vim.version.range('*') } })
+-- lazy.nvim
+{ 'ide4cj/cangjie.nvim', version = '*' }
 ```
 
 [kickstart.nvim](https://github.com/nvim-lua/kickstart.nvim) is on `vim.pack`: put the line above in
@@ -33,6 +44,7 @@ which cjls the plugin runs, and what to do when there is none.
 | `plugin/cjls.lua` | `vim.lsp.enable('cjls')`, `:CjlsInstall`, the download when there is no `cjls` on `PATH`, folds from the server |
 | `lua/cangjie/install.lua` | the download itself |
 | `lua/cangjie/health.lua` | `:checkhealth cangjie` |
+| `doc/cangjie.txt` | `:help cangjie`, this README in Neovim |
 | `ftplugin/cangjie.lua` | `//` comments (`gc`), 4-space indentation as cjls formats |
 | `plugin/cangjie.lua` | `*.cj.macrocall` as Cangjie; the tree-sitter grammar for nvim-treesitter |
 
@@ -85,8 +97,9 @@ client.settings.cjls.linkedProjects = { '/path/to/another/project' }
 client:notify('workspace/didChangeConfiguration', { settings = vim.NIL })
 ```
 
-What cjls reads, as `cjls --config-schema` describes it (the cjls the plugin pins, written by a bot
-in the PR that moves the pin; a key a cjls does not know, it leaves alone):
+What cjls reads, as `cjls --config-schema` describes it (the cjls the plugin pins, written here and
+in `:help cangjie-settings-list` by a bot in the PR that moves the pin; a key a cjls does not know,
+it leaves alone):
 
 <!-- settings: made by scripts/settings.lua from `cjls --config-schema` -->
 | `settings.cjls.` | type | default | |
@@ -153,17 +166,28 @@ vim.o.foldmethod = 'expr'
 vim.o.foldlevelstart = 99
 ```
 
+## Troubleshooting
+
+`:checkhealth cangjie` says which `cjls` the plugin runs and whether the grammar is there. The
+server logs to its stderr, which Neovim writes into its LSP log as lines tagged `stderr` (their
+"ERROR" is Neovim's level, not the server's): `:lua vim.cmd.tabnew(vim.lsp.log.get_filename())`, or
+`:LspLog` with nvim-lspconfig. `CJLS_LOG_LEVEL` (`OFF`, `ERROR`, `WARN`, `INFO` by default, `DEBUG`,
+`TRACE`) sets how much it says, through `cmd_env` as above. `:help cangjie-troubleshooting` has the
+usual causes: a failed download, an SDK not found, the wrong project.
+
 ## Test
 
 ```sh
 nvim --clean --headless -u test/run.lua                           # all of test/*_test.lua
 CJLS_BIN=/path/to/cjls nvim --clean --headless -u test/run.lua    # the server too
 TEST=cjls nvim --clean --headless -u test/run.lua                 # the cases matching a Lua pattern
-nvim -l scripts/settings.lua /path/to/cjls                        # the server's settings into README.md
+nvim -l scripts/settings.lua /path/to/cjls                        # the server's settings into README.md and doc/
+nvim --clean --headless -c 'helptags doc' -c q                    # the help's tags (doc/tags, untracked)
 ```
 
-The PR that moves the pin gets the settings of the cjls it pins in this README as a commit of a
-bot's (cjls's D107); a pin moved by hand runs the script itself.
+The PR that moves the pin gets the settings of the cjls it pins in this README and the help as a
+commit of a bot's (cjls's D107); a pin moved by hand runs the script itself. `test/doc_test.lua`
+holds the help to its tags and its links.
 
 A case needing what is not there is skipped, not failed: the server's without `CJLS_BIN`. CI runs
 them all on macOS, Linux and Windows with the latest cjls release, downloaded by
@@ -176,3 +200,8 @@ Commits are [Conventional Commits](https://www.conventionalcommits.org/) (`feat:
 checked by [cocogitto](https://docs.cocogitto.io/) in CI, on each commit and the PR title, and
 locally once the hooks are on: `git config core.hooksPath .githooks`. `master` takes pull requests
 only, squashed or rebased, once CI passes.
+
+A release is `cog bump --auto` on `master` (`.github/workflows/bump.yml`), once Renovate's PR that
+moves the cjls pin is merged on Mondays, or by hand (*Run workflow*): `CHANGELOG.md` and the tag
+`vX.Y.Z` from the commits since the last one, then a GitHub release (`release.yml`). The plugin has
+no version of its own to write; a plugin manager reads the tag.

@@ -1,0 +1,234 @@
+*cangjie.txt*      Cangjie in Neovim: the cjls language server and the grammar
+
+                                                                *cangjie.nvim*
+Cangjie (https://cangjie-lang.cn) in Neovim 0.11 or newer: the cjls language
+server (https://github.com/ide4cj/cjls), started for `.cj` files and
+downloaded on first use, which also formats; `//` comments and indentation as
+it formats; and the tree-sitter grammar for nvim-treesitter.
+
+1. Install                                              |cangjie-install|
+2. The server binary                                    |cangjie-server|
+3. Settings                                             |cangjie-settings|
+4. Formatting                                           |cangjie-formatting|
+5. Highlighting                                         |cangjie-highlighting|
+6. Folding                                              |cangjie-folding|
+7. Health and logs                                  |cangjie-troubleshooting|
+
+==============================================================================
+1. Install                                                   *cangjie-install*
+
+With |vim.pack| (Neovim 0.12): >lua
+    vim.pack.add({ 'https://github.com/ide4cj/cangjie.nvim' })
+<
+With lazy.nvim (https://lazy.folke.io): >lua
+    { 'ide4cj/cangjie.nvim' }
+<
+That follows the plugin's `master`. Each release is a tag `vX.Y.Z`, made once
+the plugin moves to a new cjls; to follow those instead: >lua
+    vim.pack.add({ {
+      src = 'https://github.com/ide4cj/cangjie.nvim',
+      version = vim.version.range('*'),
+    } })
+    -- lazy.nvim
+    { 'ide4cj/cangjie.nvim', version = '*' }
+<
+What changed in each is in `CHANGELOG.md` and on the releases page,
+https://github.com/ide4cj/cangjie.nvim/releases.
+
+kickstart.nvim is on |vim.pack|: put the line above in
+`lua/custom/plugins/cangjie.lua` and uncomment `require 'custom.plugins'` at
+the end of `init.lua`. Don't add `cjls` to its `servers` table: those are the
+servers Mason installs, and Mason does not know cjls. For highlighting, run
+`:TSInstall cangjie` once.
+
+That is all: the server downloads itself, and needs no Cangjie SDK.
+`:checkhealth cangjie` shows which cjls the plugin runs, and what to do when
+there is none. Neovim detects `*.cj` itself; the plugin adds the compiler's
+macro expansions, `*.cj.macrocall`.
+
+What the plugin sets up, by file:
+
+`lsp/cjls.lua`            the server's |vim.lsp.Config|, in nvim-lspconfig's
+                        format: `cjls` from `PATH`, rooted at the nearest
+                        `cjpm.toml`
+`plugin/cjls.lua`         `vim.lsp.enable('cjls')`, |:CjlsInstall|, the
+                        download when there is no `cjls` on `PATH`, folds
+                        from the server
+`lua/cangjie/install.lua` the download itself
+`lua/cangjie/health.lua`  `:checkhealth cangjie`
+`ftplugin/cangjie.lua`    `//` comments (|gc|), 4-space indentation as cjls
+                        formats
+`plugin/cangjie.lua`      `*.cj.macrocall` as Cangjie; the tree-sitter grammar
+                        for nvim-treesitter
+
+==============================================================================
+2. The server binary                                          *cangjie-server*
+
+A `cjls` on `PATH` always wins. Without one, at the first Cangjie buffer of a
+session, the plugin downloads the archive cjls's release publishes for this
+platform (macOS arm64, Linux x64, Windows x64), checks it against the
+release's `SHA256SUMS`, and unpacks it into `stdpath('data')/cjls/bin`
+(`~/.local/share/nvim/cjls/bin`), which it appends to `PATH`. It needs `curl`
+and `tar`, as Windows 10 and later ship them.
+
+The release is the one the plugin pins in `lua/cangjie/install.lua`, the one
+it is tested with: when the plugin manager updates the plugin to a newer pin,
+the next session downloads that release.
+
+                                                             *g:cjls_version*
+`vim.g.cjls_version` picks another release, set before the first Cangjie
+buffer: >lua
+    vim.g.cjls_version = 'v0.5.0'
+    vim.g.cjls_version = 'nightly-build' -- cjls's master, rebuilt every night
+<
+                                                                *:CjlsInstall*
+:CjlsInstall            Download the release the plugin wants (the pin, or
+                        |g:cjls_version|) again, and start the server in the
+                        Cangjie buffers open.
+
+Elsewhere, or to run your own build, put `cjls` on `PATH`, or point the
+server at it; the plugin then downloads nothing: >lua
+    vim.lsp.config('cjls', { cmd = { '/path/to/cjls/target/release/bin/cjls' } })
+<
+Anything else about the server goes through |vim.lsp.config()| too, as for
+any server, e.g. its environment: >lua
+    vim.lsp.config('cjls', { cmd_env = { CJLS_LOG_LEVEL = 'DEBUG' } })
+<
+==============================================================================
+3. Settings                                                 *cangjie-settings*
+
+The server's settings go under `settings.cjls` of its config, as
+rust-analyzer's under `settings['rust-analyzer']`: >lua
+    vim.lsp.config('cjls', {
+      settings = { cjls = { linkedProjects = { '/path/to/another/project' } } },
+    })
+<
+The server starts with them (`lsp/cjls.lua` passes them as its
+`initializationOptions`, unless `init_options` is set) and asks Neovim for
+them again once initialized. Changed in a running client, they reach the
+server by a notification of yours: >lua
+    local client = vim.lsp.get_clients({ name = 'cjls' })[1]
+    client.settings.cjls.linkedProjects = { '/path/to/another/project' }
+    client:notify('workspace/didChangeConfiguration', { settings = vim.NIL })
+<
+What cjls reads is below, as `cjls --config-schema` describes it: the
+settings of the cjls the plugin pins, written by a bot in the PR that moves
+the pin. A key a cjls does not know, it leaves alone.
+
+Settings                                               *cangjie-settings-list*
+
+settings.cjls.linkedProjects                 *cangjie-settings.linkedProjects*
+    Type: `string[]`, default: `[]`
+    Projects to load, as rust-analyzer's: each an absolute path or a `file:`
+    URI of a `cj-project.json`, or of a directory to find a project in. Under
+    a root without a `cj-project.json`, they replace finding one there;
+    outside every root, they are loaded besides.
+
+settings.cjls.cangjieHome                       *cangjie-settings.cangjieHome*
+    Type: `string or null`, default: `null`
+    The Cangjie SDK, an absolute path or a `file:` URI: looked for first,
+    before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`.
+    `std` is taken from it, and `${CANGJIE_HOME}` in a project's paths expands
+    to it.
+
+settings.cjls.cangjieSrc                         *cangjie-settings.cangjieSrc*
+    Type: `string or null`, default: `null`
+    The sources of the SDK's version, a directory holding `std/` as
+    `cangjie_runtime`'s `stdlib/libs` does, an absolute path or a `file:` URI:
+    looked for first, before `CANGJIE_SRC` and the SDK's `src`. Go to
+    definition on a declaration of `std` goes there; `cjls fetch-src` puts
+    them in the SDK's `src`.
+
+==============================================================================
+4. Formatting                                             *cangjie-formatting*
+
+The server formats, in its own style: only the whitespace around the line
+breaks you wrote, four spaces a level whatever 'shiftwidth' says, so a
+project formats alike in every editor and as `cjls fmt` does. A file with
+syntax errors is left as it is.
+
+- |gq| formats the lines it moves over (`gggqG` the whole file): Neovim sets
+  'formatexpr' to the server's once it attaches. Until then, or while typing
+  past 'textwidth', it is Neovim's own.
+- `:lua vim.lsp.buf.format()` formats the buffer.
+- With conform.nvim (https://github.com/stevearc/conform.nvim), through the
+  server: >lua
+    require('conform').setup({ default_format_opts = { lsp_format = 'fallback' } })
+<
+==============================================================================
+5. Highlighting                                         *cangjie-highlighting*
+
+The server highlights by semantic tokens once it attaches. Before that, and
+for indentation and text objects, there is tree-sitter-cangjie
+(https://github.com/ide4cj/tree-sitter-cangjie), at the head of its
+`master`: `:TSUpdate` downloads it again each time. With nvim-treesitter on
+its `main` branch (it needs the `tree-sitter` CLI and a C compiler): >vim
+    :TSInstall cangjie
+<
+The download is large: the grammar's repository carries its test corpus.
+nvim-treesitter does not start highlighting by itself; if your config does
+not already, do it for Cangjie buffers: >lua
+    vim.api.nvim_create_autocmd('FileType', {
+      pattern = 'cangjie',
+      callback = function(args)
+        vim.treesitter.start(args.buf, 'cangjie')
+        vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+      end,
+    })
+<
+Without the grammar Neovim falls back to its own `syntax/cangjie.vim`.
+
+The plugin links the server's semantic tokens to the captures the grammar
+gives the same token (`this` to `@variable.builtin`, `Int64` to
+`@type.builtin`, ...), so a token keeps its color when the server attaches; a
+link of your own, or your colorscheme's, takes precedence. See
+|lsp-semantic-highlight|.
+
+==============================================================================
+6. Folding                                                   *cangjie-folding*
+
+Folds come from the server: once cjls attaches, the plugin sets 'foldexpr' to
+`v:lua.vim.lsp.foldexpr()` in the buffer's windows. Neovim uses it where
+'foldmethod' is `expr`, which is not its default; to fold Cangjie by the
+server without everything closed at first: >lua
+    vim.o.foldmethod = 'expr'
+    vim.o.foldlevelstart = 99
+<
+==============================================================================
+7. Health and logs                 *cangjie-troubleshooting* *cangjie-health*
+
+`:checkhealth cangjie` says which `cjls` the plugin runs (one on `PATH`, or
+the release it downloaded, and whether that is the release it wants) and
+whether the tree-sitter grammar is installed. `:checkhealth vim.lsp` says
+whether the server is attached to the buffer.
+
+The server's log is its stderr, which Neovim writes into its LSP log, a line
+per message tagged `stderr` (the "ERROR" level of such a line is Neovim's,
+not the server's). Open it with: >vim
+    :lua vim.cmd.tabnew(vim.lsp.log.get_filename())
+<
+(or `:LspLog` with nvim-lspconfig). How much the server says is
+`CJLS_LOG_LEVEL`: `OFF`, `ERROR`, `WARN`, `INFO` by default, `DEBUG`,
+`TRACE`; set it through `cmd_env` (|cangjie-server|) and restart the server
+(`:lsp restart cjls` in Neovim 0.12). The messages Neovim and the server
+exchange are logged too after `:lua vim.lsp.log.set_level('debug')`.
+
+When something goes wrong:
+
+- No server in a Cangjie buffer: `:checkhealth cangjie`. A failed download
+  says why in a message; `:CjlsInstall` retries it. On a platform without a
+  release, build cjls from source and put it on `PATH`.
+- The download fails behind a proxy: `curl` reads `https_proxy`; or download
+  the archive from https://github.com/ide4cj/cjls/releases yourself and put
+  `cjls` on `PATH`.
+- `std` is not found (no go to definition into it, its names unresolved):
+  the server looks for the Cangjie SDK in `settings.cjls.cangjieHome`, then
+  `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`; see
+  |cangjie-settings-list|.
+- A project is not the one you meant: the root is the nearest `cjpm.toml`;
+  `linkedProjects` adds others (|cangjie-settings-list|), and
+  `cjls project --dir <dir>` prints the project the server finds there.
+- A bug: https://github.com/ide4cj/cangjie.nvim/issues, with the output of
+  `:checkhealth cangjie` and the log at `DEBUG`.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
