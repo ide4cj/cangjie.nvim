@@ -30,7 +30,7 @@ local function run_install(opts)
     result = err or false
   end
   install.install(opts)
-  t.wait('the installer did not finish', function()
+  t.wait('the installer to finish', function()
     return result ~= nil
   end)
   return result or nil

@@ -9,7 +9,7 @@ local function attached(lines)
   end
   vim.cmd.edit(t.fixture .. '/src/main.cj')
   local client
-  t.wait('cjls did not attach and initialize (see :LspLog)', function()
+  t.wait('cjls to attach and initialize (see :LspLog)', function()
     client = vim.lsp.get_clients({ name = 'cjls', bufnr = 0 })[1]
     return client ~= nil and client.initialized
   end)
@@ -35,12 +35,12 @@ return {
     -- act
     vim.cmd.edit(t.fixture .. '/src/main.cj')
     local client
-    t.wait('cjls did not attach and initialize (see :LspLog)', function()
+    t.wait('cjls to attach and initialize (see :LspLog)', function()
       client = vim.lsp.get_clients({ name = 'cjls', bufnr = 0 })[1]
       return client ~= nil and client.initialized
     end)
     client:stop()
-    t.wait('cjls did not exit after shutdown', function()
+    t.wait('cjls to exit after shutdown', function()
       return exit_code ~= nil
     end)
 
@@ -59,11 +59,11 @@ return {
     vim.wo.foldmethod = 'expr'
 
     -- act
-    t.wait('cjls did not attach and initialize (see :LspLog)', function()
+    t.wait('cjls to attach and initialize (see :LspLog)', function()
       local client = vim.lsp.get_clients({ name = 'cjls', bufnr = 0 })[1]
       return client ~= nil and client.initialized
     end)
-    t.wait('no folds arrived', function()
+    t.wait('folds from cjls', function()
       return vim.fn.foldlevel(4) > 0
     end)
 
@@ -124,7 +124,7 @@ return {
     attached(UNFORMATTED)
 
     -- act
-    vim.lsp.buf.format({ name = 'cjls', timeout_ms = t.TIMEOUT_MS })
+    vim.lsp.buf.format({ name = 'cjls', timeout_ms = t.FOREVER_MS })
 
     -- assert
     t.eq({ 'package fixture', '', 'main(): Int64 {', '    let a = 1', '    let b = 2', '    0', '}' }, t.lines())
@@ -137,12 +137,15 @@ return {
     if not client:supports_method('textDocument/rangeFormatting') then
       t.skip('this cjls formats no ranges')
     end
+    -- Neovim's formatexpr gives the server 500 ms and leaves the lines as they are past them, which
+    -- a slow runner's first request misses: the same, waiting for the answer
+    t.eq('v:lua.vim.lsp.formatexpr()', vim.bo.formatexpr, 'formatexpr')
+    vim.bo.formatexpr = 'v:lua.vim.lsp.formatexpr(#{timeout_ms: ' .. t.FOREVER_MS .. '})'
 
     -- act: the line of `b` alone
     vim.cmd('normal! 5Ggqq')
 
     -- assert
-    t.eq("v:lua.vim.lsp.formatexpr()", vim.bo.formatexpr, 'formatexpr')
     t.eq({ 'package fixture', '', 'main(): Int64 {', 'let a = 1', '    let b = 2', '0', '}' }, t.lines())
     vim.cmd('edit!')
   end,

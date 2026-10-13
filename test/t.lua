@@ -3,7 +3,10 @@ local t = {}
 
 t.root = vim.fs.dirname(vim.fs.dirname(vim.fs.normalize(vim.fn.fnamemodify(debug.getinfo(1, 'S').source:sub(2), ':p'))))
 t.fixture = t.root .. '/test/fixture'
-t.TIMEOUT_MS = 10000
+-- a request's timeout that never comes: a hang is the CI job's to end (#19)
+t.FOREVER_MS = 2147483647
+-- how often a wait says what it waits for
+t.NOTICE_MS = 10000
 t.IS_WINDOWS = vim.fn.has('win32') == 1
 
 function t.eq(expected, actual, what)
@@ -16,10 +19,15 @@ function t.skip(why)
   error({ skip = why }, 0)
 end
 
---- Waits for `cond` to hold, failing with `what` if it does not.
+--- Waits until `cond` holds, as long as it takes: a deadline fails a slow runner whose answer was
+--- coming (#19), and a hang is the CI job's timeout to end. Every `t.NOTICE_MS` it says what it
+--- waits for, so the log of a job killed names it.
 function t.wait(what, cond)
-  if not vim.wait(t.TIMEOUT_MS, cond) then
-    error(what .. ' within ' .. t.TIMEOUT_MS .. ' ms', 2)
+  local waited = 0
+  while not vim.wait(t.NOTICE_MS, cond) do
+    waited = waited + t.NOTICE_MS
+    io.stdout:write(string.format('wait %s: %s, %d s so far\n', t.case or '?', what, waited / 1000))
+    io.stdout:flush()
   end
 end
 
