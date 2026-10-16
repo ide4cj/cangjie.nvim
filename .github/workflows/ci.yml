@@ -10,6 +10,7 @@ on:
   schedule:
     - cron: "0 5 * * *" # after cjls's nightly
   workflow_dispatch:
+  workflow_call: # bump.yml, before a release
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

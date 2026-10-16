@@ -1,2 +1,17 @@
 ignore_merge_commits = true
 ignore_fixup_commits = true
+
+# `cog bump` on master (bump.yml): the tag, then its GitHub release
+tag_prefix = "v"
+branch_whitelist = ["master"]
+post_bump_hooks = [
+    "git push",
+    "git push origin v{{version}}",
+]
+
+[changelog]
+path = "CHANGELOG.md"
+template = "remote"
+remote = "github.com"
+owner = "ide4cj"
+repository = "cangjie.nvim"
