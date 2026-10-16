@@ -2,7 +2,7 @@ name: Bump
 
 # A release of the plugin, a tag a plugin manager can pin: once Renovate's PR
 # moves the pin in lua/cangjie/install.lua, or by hand. Its version is the pinned cjls's minor with a
-# patch of its own (cjls's D132), when a commit since the last release is one `cog bump --auto` would
+# patch of its own (cjls's D133), when a commit since the last release is one `cog bump --auto` would
 # release.
 on:
   push:
