@@ -1,0 +1,63 @@
+name: Bump
+
+# A release of the plugin, a tag a plugin manager can pin: once Renovate's PR
+# moves the pin in lua/cangjie/install.lua, or by hand. Its version is the pinned cjls's minor with a
+# patch of its own (cjls's D132), when a commit since the last release is one `cog bump --auto` would
+# release.
+on:
+  push:
+    branches: [master]
+    paths: [lua/cangjie/install.lua]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    # what its jobs ask for: `report` opens issues, on a daily run alone
+    permissions:
+      contents: read
+      issues: write
+
+  bump:
+    name: cog bump
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # the organization's app gets past a ruleset on master; GITHUB_TOKEN until it is installed
+      - id: app
+        if: vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ steps.app.outputs.token || github.token }}
+      - uses: cocogitto/cocogitto-action@v4
+        with:
+          command: check
+      - id: pin
+        run: |
+          pin=$(sed -n "s/^local CJLS_VERSION = '\(.*\)'$/\1/p" lua/cangjie/install.lua)
+          echo "tag=$pin" >> "$GITHUB_OUTPUT"
+      - id: next
+        uses: ide4cj/.github/actions/client-version@master
+        with:
+          pin: ${{ steps.pin.outputs.tag }}
+      - if: steps.next.outputs.version
+        env:
+          VERSION: ${{ steps.next.outputs.version }}
+          PIN: ${{ steps.pin.outputs.tag }}
+          GH_TOKEN: ${{ steps.app.outputs.token || github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cog bump --version "$VERSION"
+          gh release create "v$VERSION" --title "v$VERSION" --verify-tag --notes "Downloads cjls $PIN."

@@ -18,6 +18,10 @@ vim.pack.add({ 'https://github.com/ide4cj/cangjie.nvim' })
 { 'ide4cj/cangjie.nvim' }
 ```
 
+Releases are tags on cjls's minor with a patch of their own: `v0.5.x` downloads cjls `0.5`
+([cjls's D132](https://github.com/ide4cj/cjls/blob/master/docs/adr/0132-client-versions-follow-the-server.md)),
+tagged once Renovate moves the pin; `master` is the newest.
+
 [kickstart.nvim](https://github.com/nvim-lua/kickstart.nvim) is on `vim.pack`: put the line above in
 `lua/custom/plugins/cangjie.lua` and uncomment `require 'custom.plugins'` at the end of `init.lua`.
 Don't add `cjls` to its `servers` table: those are the servers Mason installs, and Mason does not
