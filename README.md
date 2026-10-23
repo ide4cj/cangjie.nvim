@@ -147,6 +147,14 @@ The plugin links the server's semantic tokens to the captures the grammar gives 
 (`this` to `@variable.builtin`, `Int64` to `@type.builtin`, …), so a token keeps its color when
 the server attaches; a link of your own, or your colorscheme's, takes precedence.
 
+## Binary library sources
+
+With a server supporting `cjls/binarySourceRoots`, sources attached to binary
+libraries (including SDK std sources) open with buffer-local `readonly` and
+`nomodifiable`. Existing buffers are protected when roots arrive; removed roots
+and stopped servers restore the previous options. Source path dependencies stay
+editable. File permissions and diagnostics are unchanged.
+
 ## Folding
 
 Folds come from the server: once cjls attaches, the plugin sets `foldexpr` to
