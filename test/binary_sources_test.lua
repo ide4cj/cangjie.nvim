@@ -22,9 +22,15 @@ return {
     config.cmd = { vim.env.CJLS_BIN }
     config.root_dir = dir
     local id = vim.lsp.start(config)
+    local client = vim.lsp.get_client_by_id(id)
+    t.wait('cjls to initialize', function() return client.initialized end)
+    if not (client.server_capabilities.experimental or {}).binarySourceRoots then
+      client:stop()
+      t.skip('server does not support cjls/binarySourceRoots')
+    end
     t.wait('binary source roots from cjls', function() return not vim.bo[buf].modifiable end)
     t.eq(true, vim.bo[buf].readonly)
-    vim.lsp.get_client_by_id(id):stop()
+    client:stop()
     t.wait('source options restored after server exit', function() return vim.bo[buf].modifiable end)
     t.eq(false, vim.bo[buf].readonly)
   end,
