@@ -99,6 +99,9 @@ in the PR that moves the pin; a key a cjls does not know, it leaves alone):
 | `linkedProjects` | string[] | `[]` | Projects to load, as rust-analyzer's: each an absolute path or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides. |
 | `cangjieHome` | string or null | `null` | The Cangjie SDK, an absolute path or a `file:` URI: looked for first, before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`. `std` is taken from it, and `${CANGJIE_HOME}` in a project's paths expands to it. |
 | `cangjieSrc` | string or null | `null` | The sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`. Go to definition on a declaration of `std` goes there; `cjls fetch-src` puts them in the SDK's `src`. |
+| `newFilePackage` | boolean | `true` | Whether a new file starts with its package line: a document opened blank in a package's directory, or in a directory a module names its packages after, is given the line `package <name>` once the project is loaded. |
+| `macroExpansion` | boolean | `true` | Whether macros are run in the SDK's `LSPMacroServer`: the workspace's, whose packages cjls builds with the SDK's `cjc` into the project's `.cache/cjls/macro-build` and which run the workspace's code, and std's, from the SDK's libraries. Off, an item under a macro of the workspace is read as written, and std's macros are expanded by cjls itself, signatures only. |
+| `macroCallTimeout` | integer | `10` | How many seconds a macro call may run: past it, the macro server is ended, and the call reported as failed until its input or its macro changes. |
 <!-- /settings -->
 
 ## Formatting
