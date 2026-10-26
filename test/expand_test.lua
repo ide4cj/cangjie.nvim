@@ -92,21 +92,32 @@ return {
       return root
     end
 
-    -- act, assert
-    t.eq(ws .. '/mod', root_dir(ws .. '/.cache/cjls/expanded/mod/src/a.cj.macrocall'), 'an expanded file')
-    t.eq(ws .. '/mod', root_dir(ws .. '/mod/src/a.cj'), 'a source file')
-    t.eq(ws .. '/mod', root_dir(ws .. '/mod/src/a.cj.macrocall'), "cjc's dump")
-    t.eq(nil, expand.source_of(ws .. '/.cache/cjls/expanded/a.cj'), 'not a .macrocall')
+    -- act
+    local expanded_root = root_dir(ws .. '/.cache/cjls/expanded/mod/src/a.cj.macrocall')
+    local source_root = root_dir(ws .. '/mod/src/a.cj')
+    local dump_root = root_dir(ws .. '/mod/src/a.cj.macrocall')
+    local non_macro_source = expand.source_of(ws .. '/.cache/cjls/expanded/a.cj')
+
+    -- assert
+    t.eq(ws .. '/mod', expanded_root, 'an expanded file')
+    t.eq(ws .. '/mod', source_root, 'a source file')
+    t.eq(ws .. '/mod', dump_root, "cjc's dump")
+    t.eq(nil, non_macro_source, 'not a .macrocall')
   end,
 
   ['an expanded file maps back to its source, under its project'] = function()
     -- arrange
     local ws = t.tempdir()
 
-    -- act, assert
-    t.eq(ws .. '/mod/src/a.cj', expand.source_of(ws .. '/mod/.cache/cjls/expanded/src/a.cj.macrocall'))
-    t.eq(nil, expand.source_of(ws .. '/expanded/src/a.cj.macrocall'), 'expanded/ of no cjls directory')
-    t.eq(nil, expand.source_of(ws .. '/.cache/cjls/expanded/.macrocall'), 'no source name')
+    -- act
+    local source = expand.source_of(ws .. '/mod/.cache/cjls/expanded/src/a.cj.macrocall')
+    local outside_cache = expand.source_of(ws .. '/expanded/src/a.cj.macrocall')
+    local unnamed = expand.source_of(ws .. '/.cache/cjls/expanded/.macrocall')
+
+    -- assert
+    t.eq(ws .. '/mod/src/a.cj', source)
+    t.eq(nil, outside_cache, 'expanded/ of no cjls directory')
+    t.eq(nil, unnamed, 'no source name')
   end,
 
   ["an expanded file of the user's cache maps back through BASE"] = function()
@@ -118,9 +129,13 @@ return {
     local nobase = t.tempdir() .. '/cjls/other-0123abcd'
     vim.fn.mkdir(nobase, 'p')
 
-    -- act, assert
-    t.eq(project .. '/src/a.cj', expand.source_of(dir .. '/expanded/src/a.cj.macrocall'))
-    t.eq(nil, expand.source_of(nobase .. '/expanded/src/a.cj.macrocall'), 'no BASE')
+    -- act
+    local source = expand.source_of(dir .. '/expanded/src/a.cj.macrocall')
+    local without_base = expand.source_of(nobase .. '/expanded/src/a.cj.macrocall')
+
+    -- assert
+    t.eq(project .. '/src/a.cj', source)
+    t.eq(nil, without_base, 'no BASE')
   end,
 
   ['an expanded file opens read-only and unmodifiable, a dump of cjc does not'] = function()
