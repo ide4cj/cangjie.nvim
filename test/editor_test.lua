@@ -33,7 +33,14 @@ return {
   end,
 
   ['the macro expansions cjc dumps are Cangjie'] = function()
-    t.eq('cangjie', vim.filetype.match({ filename = 'main.cj.macrocall' }))
+    -- arrange
+    local filename = 'main.cj.macrocall'
+
+    -- act
+    local filetype = vim.filetype.match({ filename = filename })
+
+    -- assert
+    t.eq('cangjie', filetype)
   end,
 
   ['nvim-treesitter learns of the grammar when it reads its parsers'] = function()

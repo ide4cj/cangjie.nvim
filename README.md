@@ -208,3 +208,5 @@ Commits are [Conventional Commits](https://www.conventionalcommits.org/) (`feat:
 checked by [cocogitto](https://docs.cocogitto.io/) in CI, on each commit and the PR title, and
 locally once the hooks are on: `git config core.hooksPath .githooks`. `master` takes pull requests
 only, squashed or rebased, once CI passes.
+
+Tests follow the shared [AAA and cleanup conventions](https://github.com/ide4cj/.github/blob/master/CONTRIBUTING.md#tests).
