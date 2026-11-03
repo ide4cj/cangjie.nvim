@@ -8,9 +8,32 @@ return {
     local result = environment.expand(extra, { HOME = '/home/user', PATH = '/bin', SDK = '$HOME/sdk' }, function(message)
       warnings[#warnings + 1] = message
     end)
-    t.eq({ STDX = '/home/user/sdk/static/stdx', PATH = '/bin:/tools', EMPTY = '', COPY = '$HOME/sdk', HOME = '/override' }, result)
+    t.eq({ STDX = '/override/sdk/static/stdx', PATH = '/bin:/tools', EMPTY = '', COPY = '$HOME/sdk', HOME = '/override' }, result)
     t.eq('$HOME/sdk/static/stdx', extra.STDX)
     t.eq({}, warnings)
+  end,
+
+  ['entry chains resolve independently of order and inherited values stay literal'] = function()
+    local extra = { STDX = '${SDK}/static/stdx', SDK = '$ROOT/sdk', ROOT = '$HOME', EMPTY = '', COPY = '$EMPTY', PATH = '${PATH}:/tools', INHERITED = '$RAW' }
+    local expected = { STDX = '/home/user/sdk/static/stdx', SDK = '/home/user/sdk', ROOT = '/home/user', EMPTY = '', COPY = '', PATH = '/bin:/tools', INHERITED = '$HOME/literal' }
+    local inherited = { HOME = '/home/user', PATH = '/bin', SDK = '/old', EMPTY = '/old', RAW = '$HOME/literal' }
+    t.eq(expected, environment.expand(extra, inherited, error))
+    local reverse = {}
+    local keys = vim.tbl_keys(extra)
+    table.sort(keys)
+    for i = #keys, 1, -1 do reverse[keys[i]] = extra[keys[i]] end
+    t.eq(expected, environment.expand(reverse, inherited, error))
+  end,
+
+  ['cycles and their dependents keep original values without affecting unrelated entries'] = function()
+    local extra = { A = 'secret-$B', B = '${A}/suffix', CHILD = '$A/child', SELF = '$SELF', OK = '$HOME/ok' }
+    local warnings = {}
+    local expected = vim.tbl_extend('force', extra, { OK = '/home/ok' })
+    t.eq(expected, environment.expand(extra, { HOME = '/home', A = '/old' }, function(message) warnings[#warnings + 1] = message end))
+    t.eq(4, #warnings)
+    for _, message in ipairs(warnings) do
+      assert(message:find('cyclic', 1, true) and not message:find('secret-', 1, true))
+    end
   end,
 
   ['home expansion and missing variables preserve literals without disclosing values'] = function()
@@ -67,7 +90,7 @@ return {
     local ok, err = pcall(function()
       vim.lsp.config('cjls', {
         cmd = { vim.v.progpath, '--clean', '--headless', '-l', script, destination },
-        cmd_env = { CJLS_TEST_PATH = '$CJLS_TEST_HOME/static/stdx', CJLS_TEST_EMPTY = '' },
+        cmd_env = { CJLS_TEST_PATH = '${CJLS_TEST_SDK}/static/stdx', CJLS_TEST_SDK = '$CJLS_TEST_HOME/sdk', CJLS_TEST_EMPTY = '' },
         detached = false,
       })
       environment.prepare()
@@ -77,7 +100,7 @@ return {
       end)
       t.wait('child process did not exit', function() return exited ~= nil end)
       t.eq(0, exited)
-      t.eq({ '/home/test user/static/stdx', '' }, vim.fn.readfile(destination))
+      t.eq({ '/home/test user/sdk/static/stdx', '' }, vim.fn.readfile(destination))
     end)
     if transport and not exited then transport.terminate() end
     vim.lsp.config.cjls = previous

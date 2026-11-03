@@ -1,22 +1,34 @@
 local M = {}
 local commands = setmetatable({}, { __mode = 'k' })
 
---- Expands configured values once against the inherited environment, not against each other.
+--- Resolves references between overrides; inherited values are inserted literally.
 function M.expand(extra, inherited, warn)
-  local result = {}
-  for key, value in pairs(extra or {}) do
+  extra = extra or {}
+  local result, states = {}, {}
+  local function resolve(key)
+    if states[key] == 'done' then return result[key] end
+    if states[key] == 'active' or states[key] == 'failed' then return nil end
+    states[key] = 'active'
+    local value = extra[key]
     if type(value) ~= 'string' then
       result[key] = value
     else
-      local missing = {}
+      local missing, valid = {}, true
       local function variable(reference, name)
+        if name ~= key and extra[name] ~= nil then
+          local replacement = resolve(name)
+          if replacement ~= nil then return tostring(replacement) end
+          valid = false
+          return reference
+        end
+        -- Self-references extend inherited values, e.g. PATH = '$PATH:/tools'.
         if inherited[name] ~= nil then
           return inherited[name]
         end
-        missing[name] = true
+        if name == key then valid = false else missing[name] = true end
         return reference
       end
-      -- One scan prevents values inserted by either syntax from being expanded again.
+      -- Resolved entries and inherited values stay literal when inserted.
       local parts, offset = {}, 1
       while offset <= #value do
         local first, last, name = value:find('%${([^}]+)}', offset)
@@ -46,9 +58,18 @@ function M.expand(extra, inherited, warn)
         table.sort(names)
         warn('cjls.cmd_env.' .. key .. ': environment variables are not set: ' .. table.concat(names, ', ') .. '; keeping references')
       end
+      if not valid then
+        states[key] = 'failed'
+        result[key] = value
+        warn('cjls.cmd_env.' .. key .. ': cyclic entry reference or dependency; keeping configured value')
+        return nil
+      end
       result[key] = expanded
     end
+    states[key] = 'done'
+    return result[key]
   end
+  for key in pairs(extra) do resolve(key) end
   return result
 end
 
