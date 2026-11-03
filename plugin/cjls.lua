@@ -6,6 +6,14 @@ end
 vim.g.loaded_cjls = true
 
 local install = require('cangjie.install')
+local environment = require('cangjie.environment')
+
+-- Register before enabling LSP: before_init runs after the process has already started.
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'cangjie',
+  group = vim.api.nvim_create_augroup('cjls.environment', {}),
+  callback = environment.prepare,
+})
 
 -- After whatever is on PATH, so a cjls of one's own wins over the download
 vim.env.PATH = vim.env.PATH .. (vim.fn.has('win32') == 1 and ';' or ':') .. install.bin_dir()
@@ -39,7 +47,7 @@ vim.api.nvim_create_autocmd('FileType', {
   once = true,
   group = vim.api.nvim_create_augroup('cjls.install', {}),
   callback = function()
-    local cmd = vim.lsp.config.cjls and vim.lsp.config.cjls.cmd
+    local cmd = environment.command(vim.lsp.config.cjls)
     if type(cmd) ~= 'table' or cmd[1] ~= 'cjls' then
       return -- pointed at a binary of one's own
     end
