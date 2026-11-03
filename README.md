@@ -47,6 +47,20 @@ Neovim detects `*.cj` itself. Settings go through `vim.lsp.config`, as for any s
 vim.lsp.config('cjls', { cmd_env = { CJLS_LOG_LEVEL = 'DEBUG' } })
 ```
 
+Values in `cmd_env` expand `$VAR`, `${VAR}` and a leading `~` before
+launching cjls. For example, `CANGJIE_STDX_PATH = '$HOME/.cjpm/toolchains/default/linux_x86_64_cjnative/static/stdx'`
+uses `HOME` from `cmd_env` if configured, otherwise Neovim's inherited `HOME`.
+References resolve other `cmd_env` entries first, including chains such as
+`SDK = '$HOME/sdk', CANGJIE_STDX_PATH = '${SDK}/static/stdx'`, independently of
+entry order. Self-references such as `PATH = '$PATH:/tools'` use the inherited
+value. Inherited values are inserted literally. Cycles (including self-references
+without an inherited value) leave affected entries and their dependents unchanged
+and produce warnings. Missing variables remain literal and
+produce warnings without logging values. `~` uses inherited `HOME`, falling back to
+`USERPROFILE`; `~user` and other shell expressions remain literal. Restart cjls
+after changing its environment. This applies to automatic startup via
+`vim.lsp.enable('cjls')`, including custom command lists and command functions.
+
 ## The server binary
 
 A `cjls` on `PATH` always wins. Without one, at the first Cangjie buffer of a session, the plugin

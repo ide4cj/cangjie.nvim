@@ -12,7 +12,7 @@ end
 local function check_cjls()
   vim.health.start('cjls')
   local install = require('cangjie.install')
-  local cmd = vim.lsp.config.cjls and vim.lsp.config.cjls.cmd
+  local cmd = require('cangjie.environment').command(vim.lsp.config.cjls)
   if type(cmd) ~= 'table' then
     return vim.health.info('`cmd` is a function: the plugin neither checks nor downloads the server')
   end
