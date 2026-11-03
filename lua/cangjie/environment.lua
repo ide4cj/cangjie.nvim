@@ -6,8 +6,12 @@ function M.expand(extra, inherited, warn)
   extra = extra or {}
   local result, states = {}, {}
   local function resolve(key)
-    if states[key] == 'done' then return result[key] end
-    if states[key] == 'active' or states[key] == 'failed' then return nil end
+    if states[key] == 'done' then
+      return result[key]
+    end
+    if states[key] == 'active' or states[key] == 'failed' then
+      return nil
+    end
     states[key] = 'active'
     local value = extra[key]
     if type(value) ~= 'string' then
@@ -17,7 +21,9 @@ function M.expand(extra, inherited, warn)
       local function variable(reference, name)
         if name ~= key and extra[name] ~= nil then
           local replacement = resolve(name)
-          if replacement ~= nil then return tostring(replacement) end
+          if replacement ~= nil then
+            return tostring(replacement)
+          end
           valid = false
           return reference
         end
@@ -25,7 +31,11 @@ function M.expand(extra, inherited, warn)
         if inherited[name] ~= nil then
           return inherited[name]
         end
-        if name == key then valid = false else missing[name] = true end
+        if name == key then
+          valid = false
+        else
+          missing[name] = true
+        end
         return reference
       end
       -- Resolved entries and inherited values stay literal when inserted.
@@ -56,7 +66,13 @@ function M.expand(extra, inherited, warn)
       if next(missing) then
         local names = vim.tbl_keys(missing)
         table.sort(names)
-        warn('cjls.cmd_env.' .. key .. ': environment variables are not set: ' .. table.concat(names, ', ') .. '; keeping references')
+        warn(
+          'cjls.cmd_env.'
+            .. key
+            .. ': environment variables are not set: '
+            .. table.concat(names, ', ')
+            .. '; keeping references'
+        )
       end
       if not valid then
         states[key] = 'failed'
@@ -69,7 +85,9 @@ function M.expand(extra, inherited, warn)
     states[key] = 'done'
     return result[key]
   end
-  for key in pairs(extra) do resolve(key) end
+  for key in pairs(extra) do
+    resolve(key)
+  end
   return result
 end
 
