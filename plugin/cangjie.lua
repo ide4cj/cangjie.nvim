@@ -35,3 +35,21 @@ vim.api.nvim_set_hl(0, '@lsp.type.typeParameter.cangjie', { link = '@type', defa
 vim.api.nvim_set_hl(0, '@lsp.type.macro.cangjie', { link = '@function.macro', default = true })
 vim.api.nvim_set_hl(0, '@lsp.typemod.method.constructor.cangjie', { link = '@constructor', default = true })
 vim.api.nvim_set_hl(0, '@lsp.typemod.variable.constant.cangjie', { link = '@constant', default = true })
+-- A token of the server resolves to the group the grammar's queries capture the same thing as, so
+-- the color is the one the grammar would have given, whether treesitter or the server paints.
+-- `decorator` (the grammar paints `@function.macro`) and `unresolvedReference` are left to the
+-- theme on purpose.
+vim.api.nvim_set_hl(0, '@lsp.type.type.cangjie', { link = '@type', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.class.cangjie', { link = '@type', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.interface.cangjie', { link = '@type', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.struct.cangjie', { link = '@type', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.enum.cangjie', { link = '@type', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.function.cangjie', { link = '@function', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.method.cangjie', { link = '@function.method', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.property.cangjie', { link = '@variable.member', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.namespace.cangjie', { link = '@module', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.variable.cangjie', { link = '@variable', default = true })
+vim.api.nvim_set_hl(0, '@lsp.type.parameter.cangjie', { link = '@variable.parameter', default = true })
+-- The grammar captures enum cases `@enum_member` (tree-sitter-cangjie, apart from `const`); the
+-- capture resolves where the server's `enumMember` tokens do: one color for both.
+vim.api.nvim_set_hl(0, '@enum_member.cangjie', { link = '@lsp.type.enumMember', default = true })
