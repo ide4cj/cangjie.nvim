@@ -18,34 +18,35 @@
 
 ---@type vim.lsp.Config
 return {
-  cmd = { 'cjls' },
-  filetypes = { 'cangjie' },
-  root_markers = { 'cjpm.toml' },
-  on_exit = function(_, _, client_id)
-    vim.schedule(function() require('cangjie.binary_sources').clear(client_id) end)
-  end,
-  -- the nearest `cjpm.toml` (or the `root_markers` one sets); but a file the server expanded,
-  -- `<project>/.cache/cjls/expanded/<path>.macrocall`, belongs to the server of its source, which
-  -- wrote it and answers hover and definition in it
-  root_dir = function(bufnr, on_dir)
-    local source = require('cangjie.expand').source_of(vim.api.nvim_buf_get_name(bufnr))
-    local config = vim.lsp.config.cjls
-    on_dir(vim.fs.root(source or bufnr, config and config.root_markers or { 'cjpm.toml' }))
-  end,
-  handlers = {
-    ['cjls/binarySourceRoots'] = require('cangjie.binary_sources').handler,
-    -- a file the server expanded again is shown as written now, not as a buffer last read it
-    ['window/showDocument'] = function(err, params, ctx)
-      require('cangjie.expand').reload(params and params.uri)
-      return vim.lsp.handlers['window/showDocument'](err, params, ctx)
-    end,
-  },
-  -- the section `cjls` is also what the server starts with, its `initializationOptions` unless
-  -- they are set; it asks for the section again once initialized
-  before_init = function(params, config)
-    local settings = config.settings and config.settings.cjls
-    if params.initializationOptions == nil and type(settings) == 'table' and next(settings) ~= nil then
-      params.initializationOptions = settings
-    end
-  end,
+	cmd = { "cjls" },
+	filetypes = { "cangjie" },
+	root_markers = { "cjpm.toml", "cj-project.json", ".git" },
+	on_exit = function(_, _, client_id)
+		vim.schedule(function()
+			require("cangjie.binary_sources").clear(client_id)
+		end)
+	end,
+	-- the nearest `cjpm.toml` or `cj-project.json` (or the `root_markers` one sets).
+	-- for *.cj.macrocall file tries to restore an original *.cj file and search from there.
+	root_dir = function(bufnr, on_dir)
+		local source = require("cangjie.expand").source_of(vim.api.nvim_buf_get_name(bufnr))
+		local config = vim.lsp.config.cjls
+		on_dir(
+			vim.fs.root(source or bufnr, config and config.root_markers or { "cjpm.toml", "cj-project.json", ".git" })
+		)
+	end,
+	handlers = {
+		["cjls/binarySourceRoots"] = require("cangjie.binary_sources").handler,
+		-- reload expansions
+		["window/showDocument"] = function(err, params, ctx)
+			require("cangjie.expand").reload(params and params.uri)
+			return vim.lsp.handlers["window/showDocument"](err, params, ctx)
+		end,
+	},
+	before_init = function(params, config)
+		local settings = config.settings and config.settings.cjls
+		if params.initializationOptions == nil and type(settings) == "table" and next(settings) ~= nil then
+			params.initializationOptions = settings
+		end
+	end,
 }

@@ -1,98 +1,98 @@
 -- The language server: enabled for Cangjie buffers, and downloaded from its GitHub release when
 -- there is no cjls on PATH (lua/cangjie/install.lua).
 if vim.g.loaded_cjls then
-  return
+	return
 end
 vim.g.loaded_cjls = true
 
-local install = require('cangjie.install')
-local environment = require('cangjie.environment')
+local install = require("cangjie.install")
+local environment = require("cangjie.environment")
 
 -- Register before enabling LSP: before_init runs after the process has already started.
-vim.api.nvim_create_autocmd('FileType', {
-  pattern = 'cangjie',
-  group = vim.api.nvim_create_augroup('cjls.environment', {}),
-  callback = environment.prepare,
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "cangjie",
+	group = vim.api.nvim_create_augroup("cjls.environment", {}),
+	callback = environment.prepare,
 })
 
 -- After whatever is on PATH, so a cjls of one's own wins over the download
-vim.env.PATH = vim.env.PATH .. (vim.fn.has('win32') == 1 and ';' or ':') .. install.bin_dir()
+vim.env.PATH = vim.env.PATH .. (vim.fn.has("win32") == 1 and ";" or ":") .. install.bin_dir()
 
 local function install_and_start(version)
-  vim.notify('cjls: downloading ' .. (version or 'the latest release') .. '…')
-  install.install({
-    version = version,
-    on_done = function(err)
-      if err then
-        return vim.notify(
-          'cjls: ' .. err .. '\nBuild cjls from source and put it on PATH, or retry with :CjlsInstall',
-          vim.log.levels.ERROR
-        )
-      end
-      vim.notify('cjls: installed ' .. install.installed())
-      -- starts the server in the Cangjie buffers already open
-      vim.lsp.enable('cjls')
-    end,
-  })
+	vim.notify("cjls: downloading " .. (version or "the latest release") .. "…")
+	install.install({
+		version = version,
+		on_done = function(err)
+			if err then
+				return vim.notify(
+					"cjls: " .. err .. "\nBuild cjls from source and put it on PATH, or retry with :CjlsInstall",
+					vim.log.levels.ERROR
+				)
+			end
+			vim.notify("cjls: installed " .. install.installed())
+			-- starts the server in the Cangjie buffers already open
+			vim.lsp.enable("cjls")
+		end,
+	})
 end
 
-vim.api.nvim_create_user_command('CjlsInstall', function()
-  install_and_start(install.wanted())
-end, { desc = 'Download the cjls binary from its GitHub release' })
+vim.api.nvim_create_user_command("CjlsInstall", function()
+	install_and_start(install.wanted())
+end, { desc = "Download the cjls binary from its GitHub release" })
 
 -- Once per session, at the first Cangjie buffer: download the server if it is missing, or if the
 -- plugin (or `vim.g.cjls_version`) has moved on to another release since
-vim.api.nvim_create_autocmd('FileType', {
-  pattern = 'cangjie',
-  once = true,
-  group = vim.api.nvim_create_augroup('cjls.install', {}),
-  callback = function()
-    local cmd = environment.command(vim.lsp.config.cjls)
-    if type(cmd) ~= 'table' or cmd[1] ~= 'cjls' then
-      return -- pointed at a binary of one's own
-    end
-    local exe = vim.fn.exepath('cjls')
-    if exe ~= '' and not vim.startswith(vim.fs.normalize(exe), vim.fs.normalize(install.bin_dir())) then
-      return -- one's own on PATH
-    end
-    local wanted = install.wanted()
-    if exe == '' or (wanted and wanted ~= install.installed()) then
-      install_and_start(wanted)
-    end
-  end,
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "cangjie",
+	once = true,
+	group = vim.api.nvim_create_augroup("cjls.install", {}),
+	callback = function()
+		local cmd = environment.command(vim.lsp.config.cjls)
+		if type(cmd) ~= "table" or cmd[1] ~= "cjls" then
+			return -- pointed at a binary of one's own
+		end
+		local exe = vim.fn.exepath("cjls")
+		if exe ~= "" and not vim.startswith(vim.fs.normalize(exe), vim.fs.normalize(install.bin_dir())) then
+			return -- one's own on PATH
+		end
+		local wanted = install.wanted()
+		if exe == "" or (wanted and wanted ~= install.installed()) then
+			install_and_start(wanted)
+		end
+	end,
 })
 
 -- Folds from the server once it says it has them, in the window the buffer is attached in; they
 -- show where `foldmethod` is `expr`
-vim.api.nvim_create_autocmd('LspAttach', {
-  group = vim.api.nvim_create_augroup('cjls.folds', {}),
-  callback = function(args)
-    local client = vim.lsp.get_client_by_id(args.data.client_id)
-    if client and client.name == 'cjls' and client:supports_method('textDocument/foldingRange', args.buf) then
-      for _, win in ipairs(vim.fn.win_findbuf(args.buf)) do
-        vim.wo[win][0].foldexpr = 'v:lua.vim.lsp.foldexpr()'
-      end
-    end
-  end,
+vim.api.nvim_create_autocmd("LspAttach", {
+	group = vim.api.nvim_create_augroup("cjls.folds", {}),
+	callback = function(args)
+		local client = vim.lsp.get_client_by_id(args.data.client_id)
+		if client and client.name == "cjls" and client:supports_method("textDocument/foldingRange", args.buf) then
+			for _, win in ipairs(vim.fn.win_findbuf(args.buf)) do
+				vim.wo[win][0].foldexpr = "v:lua.vim.lsp.foldexpr()"
+			end
+		end
+	end,
 })
 
 -- Macro expansion: what the call at the cursor expands to, in a split (`cjls/expandMacro`); the
 -- server's code action "Expand macro" writes the whole file expanded and shows it, which Neovim
 -- does by itself (`window/showDocument`)
-vim.api.nvim_create_user_command('CjlsExpandMacro', function()
-  require('cangjie.expand').expand()
-end, { desc = 'Show what the macro call at the cursor expands to (cjls)' })
+vim.api.nvim_create_user_command("CjlsExpandMacro", function()
+	require("cangjie.expand").expand()
+end, { desc = "Show what the macro call at the cursor expands to (cjls)" })
 
 -- The files cjls expands into `.cache/cjls/expanded/` are its own, written again by "Expand macro"
-vim.api.nvim_create_autocmd('BufReadPost', {
-  pattern = '*.macrocall',
-  group = vim.api.nvim_create_augroup('cjls.expanded', {}),
-  callback = function(args)
-    local expand = require('cangjie.expand')
-    if expand.is_expanded(args.match) then
-      expand.protect(args.buf)
-    end
-  end,
+vim.api.nvim_create_autocmd("BufReadPost", {
+	pattern = "*.macrocall",
+	group = vim.api.nvim_create_augroup("cjls.expanded", {}),
+	callback = function(args)
+		local expand = require("cangjie.expand")
+		if expand.is_expanded(args.match) then
+			expand.protect(args.buf)
+		end
+	end,
 })
 
-vim.lsp.enable('cjls')
+vim.lsp.enable("cjls")

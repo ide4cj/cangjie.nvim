@@ -1,101 +1,114 @@
 -- What `plugin/` and `ftplugin/` set up without the server.
-local t = require('t')
+local t = require("t")
 
 return {
-  ['a Cangjie buffer is commented and indented as cjls formats it'] = function()
-    -- act
-    t.buffer({ 'main() {}' })
+	["a Cangjie buffer is commented and indented as cjls formats it"] = function()
+		-- act
+		t.buffer({ "main() {}" })
 
-    -- assert
-    t.eq('// %s', vim.bo.commentstring, 'commentstring')
-    t.eq(4, vim.bo.shiftwidth, 'shiftwidth')
-    t.eq(true, vim.bo.expandtab, 'expandtab')
-  end,
+		-- assert
+		t.eq("// %s", vim.bo.commentstring, "commentstring")
+		t.eq(4, vim.bo.shiftwidth, "shiftwidth")
+		t.eq(true, vim.bo.expandtab, "expandtab")
+	end,
 
-  ['gq is left to the server'] = function()
-    -- act
-    t.buffer({ 'main() {}' })
+	["gq is left to the server"] = function()
+		-- act
+		t.buffer({ "main() {}" })
 
-    -- assert
-    t.eq('', vim.bo.formatexpr)
-  end,
+		-- assert
+		t.eq("", vim.bo.formatexpr)
+	end,
 
-  ['another file type undoes the ftplugin'] = function()
-    -- arrange
-    t.buffer({ 'main() {}' })
+	["another file type undoes the ftplugin"] = function()
+		-- arrange
+		t.buffer({ "main() {}" })
 
-    -- act
-    vim.bo.filetype = 'text'
+		-- act
+		vim.bo.filetype = "text"
 
-    -- assert
-    t.eq('', vim.bo.suffixesadd, 'suffixesadd')
-    t.eq(false, vim.bo.expandtab, 'expandtab')
-  end,
+		-- assert
+		t.eq("", vim.bo.suffixesadd, "suffixesadd")
+		t.eq(false, vim.bo.expandtab, "expandtab")
+	end,
 
-  ['the macro expansions cjc dumps are Cangjie'] = function()
-    -- arrange
-    local filename = 'main.cj.macrocall'
+	["the macro expansions cjc dumps are Cangjie"] = function()
+		-- arrange
+		local filename = "main.cj.macrocall"
 
-    -- act
-    local filetype = vim.filetype.match({ filename = filename })
+		-- act
+		local filetype = vim.filetype.match({ filename = filename })
 
-    -- assert
-    t.eq('cangjie', filetype)
-  end,
+		-- assert
+		t.eq("cangjie", filetype)
+	end,
 
-  ['nvim-treesitter learns of the grammar when it reads its parsers'] = function()
-    -- arrange: a stand-in parser table, so neither nvim-treesitter nor the network is needed
-    package.loaded['nvim-treesitter.parsers'] = {}
+	["nvim-treesitter learns of the grammar when it reads its parsers"] = function()
+		-- arrange: a stand-in parser table, so neither nvim-treesitter nor the network is needed
+		package.loaded["nvim-treesitter.parsers"] = {}
 
-    -- act
-    vim.api.nvim_exec_autocmds('User', { pattern = 'TSUpdate' })
+		-- act
+		vim.api.nvim_exec_autocmds("User", { pattern = "TSUpdate" })
 
-    -- assert
-    local cangjie = package.loaded['nvim-treesitter.parsers'].cangjie
-    package.loaded['nvim-treesitter.parsers'] = nil
-    assert(cangjie and cangjie.install_info.url and cangjie.install_info.branch, 'the cangjie grammar is not registered')
-  end,
+		-- assert
+		local cangjie = package.loaded["nvim-treesitter.parsers"].cangjie
+		package.loaded["nvim-treesitter.parsers"] = nil
+		assert(
+			cangjie and cangjie.install_info.url and cangjie.install_info.branch,
+			"the cangjie grammar is not registered"
+		)
+	end,
 
-  ["the server's semantic tokens are highlighted as the grammar captures them"] = function()
-    -- arrange
-    local links = {
-      ['@lsp.typemod.variable.defaultLibrary.cangjie'] = '@variable.builtin',
-      ['@lsp.typemod.type.defaultLibrary.cangjie'] = '@type.builtin',
-      ['@lsp.type.typeParameter.cangjie'] = '@type',
-      ['@lsp.type.macro.cangjie'] = '@function.macro',
-      ['@lsp.typemod.method.constructor.cangjie'] = '@constructor',
-      ['@lsp.typemod.variable.constant.cangjie'] = '@constant',
-    }
+	["the server's semantic tokens are highlighted as the grammar captures them"] = function()
+		-- arrange
+		local links = {
+			["@lsp.typemod.variable.defaultLibrary.cangjie"] = "@variable.builtin",
+			["@lsp.typemod.type.defaultLibrary.cangjie"] = "@type.builtin",
+			["@lsp.type.typeParameter.cangjie"] = "@type",
+			["@lsp.type.macro.cangjie"] = "@function.macro",
+			["@lsp.typemod.method.constructor.cangjie"] = "@constructor",
+			["@lsp.typemod.variable.constant.cangjie"] = "@constant",
+		}
 
-    -- act
-    t.buffer({ 'main() {}' })
+		-- act
+		t.buffer({ "main() {}" })
 
-    -- assert
-    for group, link in pairs(links) do
-      t.eq(link, vim.api.nvim_get_hl(0, { name = group }).link, group)
-    end
-  end,
+		-- assert
+		for group, link in pairs(links) do
+			t.eq(link, vim.api.nvim_get_hl(0, { name = group }).link, group)
+		end
+	end,
 
-  ['checkhealth reports on the server and the grammar, without errors'] = function()
-    -- arrange: what the checks report, rather than the buffer :checkhealth fills when it likes
-    local reported, saved = {}, vim.health
-    local function record(kind)
-      return function(msg)
-        table.insert(reported, kind .. ' ' .. msg)
-      end
-    end
-    vim.health = { start = record('#'), ok = record('ok'), info = record('info'), warn = record('warn'), error = record('ERROR') }
+	["checkhealth reports on the server and the grammar, without errors"] = function()
+		-- arrange: what the checks report, rather than the buffer :checkhealth fills when it likes
+		local reported, saved = {}, vim.health
+		local function record(kind)
+			return function(msg)
+				table.insert(reported, kind .. " " .. msg)
+			end
+		end
+		vim.health = {
+			start = record("#"),
+			ok = record("ok"),
+			info = record("info"),
+			warn = record("warn"),
+			error = record("ERROR"),
+		}
 
-    -- act
-    local ok, err = pcall(require('cangjie.health').check)
-    vim.health = saved
+		-- act
+		local ok, err = pcall(require("cangjie.health").check)
+		vim.health = saved
 
-    -- assert
-    assert(ok, err)
-    local text = table.concat(reported, '\n')
-    t.eq({ '# cjls', '# tree-sitter' }, vim.tbl_filter(function(line)
-      return vim.startswith(line, '#')
-    end, reported), text)
-    assert(not text:match('ERROR'), text)
-  end,
+		-- assert
+		assert(ok, err)
+		local text = table.concat(reported, "\n")
+		t.eq(
+			{ "# cjls", "# tree-sitter" },
+			vim.tbl_filter(function(line)
+				return vim.startswith(line, "#")
+			end, reported),
+			text
+		)
+		assert(not text:match("ERROR"), text)
+	end,
 }
