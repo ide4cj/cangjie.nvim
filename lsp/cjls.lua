@@ -20,7 +20,7 @@
 return {
 	cmd = { "cjls" },
 	filetypes = { "cangjie" },
-	root_markers = { "cjpm.toml", "cj-project.json", ".git" },
+	root_markers = { { "cjpm.toml", "cj-project.json" }, ".git" },
 	on_exit = function(_, _, client_id)
 		vim.schedule(function()
 			require("cangjie.binary_sources").clear(client_id)
@@ -32,7 +32,10 @@ return {
 		local source = require("cangjie.expand").source_of(vim.api.nvim_buf_get_name(bufnr))
 		local config = vim.lsp.config.cjls
 		on_dir(
-			vim.fs.root(source or bufnr, config and config.root_markers or { "cjpm.toml", "cj-project.json", ".git" })
+			vim.fs.root(
+				source or bufnr,
+				config and config.root_markers or { { "cjpm.toml", "cj-project.json" }, ".git" }
+			)
 		)
 	end,
 	handlers = {
