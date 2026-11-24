@@ -61,6 +61,35 @@ produce warnings without logging values. `~` uses inherited `HOME`, falling back
 after changing its environment. This applies to automatic startup via
 `vim.lsp.enable('cjls')`, including custom command lists and command functions.
 
+### Nix (home-manager)
+
+Add this repository as flake input:
+
+```nix
+{ 
+  inputs.cangjie-nvim.url = "github:ide4cj/cangjie.nvim";
+  # ...
+}
+```
+
+Register grammar for tree-sitter plugin and plugin itself:
+
+```nix
+{
+  programs.neovim = {
+    plugins = with pkgs.vimPlugins; [
+      (nvim-treesitter.withPlugins (
+        ps: with ps; nvim-treesitter.allGrammars ++ [
+          cangjie-nvim.packages.${system}.tree-sitter-cangjie
+        ]))
+
+
+      cangjie-nvim.packages.${system}.default
+    ];
+  };
+}
+```
+
 ## The server binary
 
 A `cjls` on `PATH` always wins. Without one, at the first Cangjie buffer of a session, the plugin
